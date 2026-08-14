@@ -53,6 +53,25 @@ export default function NewMemberPage() {
       disciplineScore
     );
 
+    // =========================================================
+    // KIỂM TRA SESSION TRƯỚC KHI INSERT
+    // =========================================================
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    console.log("=================================");
+    console.log("SESSION TRƯỚC KHI INSERT:", session);
+    console.log("USER ID:", session?.user?.id);
+    console.log("USER EMAIL:", session?.user?.email);
+    console.log("=================================");
+
+    if (!session) {
+      alert("Không có phiên đăng nhập Supabase!");
+      return;
+    }
+
     // Lưu dữ liệu
     const { error } = await supabase.from("members").insert([
       {
@@ -73,6 +92,7 @@ export default function NewMemberPage() {
     ]);
 
     if (error) {
+      console.error("SUPABASE INSERT ERROR:", error);
       alert(error.message);
       return;
     }
