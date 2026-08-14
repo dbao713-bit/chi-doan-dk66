@@ -1,18 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+
+const BUCKET = "announcement-documents";
+const TEMPLATE = "test-docx.docx";
 
 function isValidId(id: string) {
   return /^[a-zA-Z0-9_-]+$/.test(id);
 }
 
-export async function POST(request: NextRequest) {
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseSecretKey =
+    process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error(
+      "Thiếu SUPABASE_URL trong .env.local."
+    );
+  }
+
+  if (!supabaseSecretKey) {
+    throw new Error(
+      "Thiếu SUPABASE_SECRET_KEY trong .env.local."
+    );
+  }
+
+  return createClient(
+    supabaseUrl,
+    supabaseSecretKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+export async function POST(
+  request: NextRequest
+) {
   console.log("\n========================================");
-  console.log("[ANNOUNCEMENT DOCUMENT] POST");
+  console.log(
+    "[ANNOUNCEMENT DOCUMENT] POST"
+  );
 
   try {
+    /**
+     * =====================================================
+     * 1. ĐỌC ANNOUNCEMENT ID
+     * =====================================================
+     */
+
     const body = await request.json();
 
     const announcementId = String(
@@ -38,7 +79,8 @@ export async function POST(request: NextRequest) {
     if (!isValidId(announcementId)) {
       return NextResponse.json(
         {
-          error: "announcementId không hợp lệ.",
+          error:
+            "announcementId không hợp lệ.",
         },
         {
           status: 400,
@@ -46,108 +88,141 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /*
-     * ---------------------------------------------------------
-     * TEMPLATE
-     * ---------------------------------------------------------
+    /**
+     * =====================================================
+     * 2. DOCUMENT ID
+     * =====================================================
      *
-     * File mẫu:
+     * announcementId:
      *
-     * public/documents/test-docx.docx
-     */
-
-    const templatePath = path.join(
-      process.cwd(),
-      "public",
-      "documents",
-      "test-docx.docx"
-    );
-
-    /*
-     * ---------------------------------------------------------
-     * TARGET
-     * ---------------------------------------------------------
+     * ca60bd73-b17d-4ced-9acb-5fbc72d5730e
      *
-     * Ví dụ:
+     * =>
      *
-     * announcementId = 123
-     *
-     * => announcement-123.docx
+     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e.docx
      */
 
     const documentId =
       `announcement-${announcementId}`;
 
-    const targetPath = path.join(
-      process.cwd(),
-      "public",
-      "documents",
-      `${documentId}.docx`
+    const targetFile =
+      `${documentId}.docx`;
+
+    console.log(
+      "[ANNOUNCEMENT DOCUMENT] documentId:",
+      documentId
     );
 
     console.log(
       "[ANNOUNCEMENT DOCUMENT] template:",
-      templatePath
+      TEMPLATE
     );
 
     console.log(
       "[ANNOUNCEMENT DOCUMENT] target:",
-      targetPath
+      targetFile
     );
 
-    /*
-     * ---------------------------------------------------------
-     * KIỂM TRA TEMPLATE
-     * ---------------------------------------------------------
+    /**
+     * =====================================================
+     * 3. SUPABASE ADMIN CLIENT
+     * =====================================================
      */
 
-    try {
-      await fs.access(templatePath);
-    } catch {
+    const supabase =
+      getSupabaseAdmin();
+
+    /**
+     * =====================================================
+     * 4. KIỂM TRA TEMPLATE
+     * =====================================================
+     */
+
+    console.log(
+      "[ANNOUNCEMENT DOCUMENT] Checking template..."
+    );
+
+    const { data: templateInfo, error: templateError } =
+      await supabase.storage
+        .from(BUCKET)
+        .list("", {
+          search: TEMPLATE,
+          limit: 10,
+        });
+
+    if (templateError) {
       console.error(
-        "[ANNOUNCEMENT DOCUMENT] Template không tồn tại."
+        "[ANNOUNCEMENT DOCUMENT] Template list error:",
+        templateError
       );
 
-      return NextResponse.json(
-        {
-          error:
-            "Không tìm thấy template public/documents/test-docx.docx.",
-        },
-        {
-          status: 500,
-        }
+      throw new Error(
+        `Không thể kiểm tra template: ${templateError.message}`
       );
     }
 
-    /*
-     * ---------------------------------------------------------
-     * COPY
-     * ---------------------------------------------------------
+    const templateExists =
+      templateInfo?.some(
+        (file) =>
+          file.name === TEMPLATE
+      );
+
+    if (!templateExists) {
+      throw new Error(
+        `Không tìm thấy ${TEMPLATE} trong bucket ${BUCKET}.`
+      );
+    }
+
+    console.log(
+      "[ANNOUNCEMENT DOCUMENT] Template exists."
+    );
+
+    /**
+     * =====================================================
+     * 5. COPY TEMPLATE TRONG SUPABASE STORAGE
+     * =====================================================
+     *
+     * Từ:
+     *
+     * announcement-documents/test-docx.docx
+     *
+     * thành:
+     *
+     * announcement-documents/announcement-<id>.docx
      */
 
-    await fs.copyFile(
-      templatePath,
-      targetPath
+    console.log(
+      "[ANNOUNCEMENT DOCUMENT] Copying template..."
     );
 
-    const stat =
-      await fs.stat(targetPath);
+    const { data, error } =
+      await supabase.storage
+        .from(BUCKET)
+        .copy(
+          TEMPLATE,
+          targetFile
+        );
+
+    if (error) {
+      console.error(
+        "[ANNOUNCEMENT DOCUMENT] Storage copy error:",
+        error
+      );
+
+      throw new Error(
+        `Không thể tạo file DOCX: ${error.message}`
+      );
+    }
 
     console.log(
-      "[ANNOUNCEMENT DOCUMENT] File created:",
-      targetPath
+      "[ANNOUNCEMENT DOCUMENT] Copy success:",
+      data
     );
 
-    console.log(
-      "[ANNOUNCEMENT DOCUMENT] Size:",
-      stat.size,
-      "bytes"
-    );
-
-    /*
-     * ---------------------------------------------------------
-     * RESPONSE
-     * ---------------------------------------------------------
+    /**
+     * =====================================================
+     * 6. RESPONSE
+     * =====================================================
      */
 
     return NextResponse.json({
@@ -157,7 +232,9 @@ export async function POST(request: NextRequest) {
 
       documentId,
 
-      filePath: targetPath,
+      bucket: BUCKET,
+
+      file: targetFile,
     });
   } catch (error) {
     console.error(
