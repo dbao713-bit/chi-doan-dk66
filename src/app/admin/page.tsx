@@ -25,10 +25,13 @@ export default function AdminPage() {
     });
 
     if (error) {
-      setLoading(false);
-      setError("Email hoặc mật khẩu không đúng.");
-      return;
-    }
+  console.error("SUPABASE LOGIN ERROR:", error);
+
+  setLoading(false);
+  setError(error.message);
+
+  return;
+}
 
     router.push("/dashboard");
     router.refresh();
