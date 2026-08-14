@@ -14,28 +14,27 @@ export default function AdminPage() {
   const [error, setError] = useState("");
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  event.preventDefault();
 
-    setLoading(true);
-    setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  setLoading(true);
+  setError("");
 
-    if (error) {
-  console.error("SUPABASE LOGIN ERROR:", error);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-  setLoading(false);
-  setError(error.message);
+  if (error) {
 
-  return;
-}
+    setLoading(false);
+    setError(error.message);
 
-    router.push("/dashboard");
-    router.refresh();
+    return;
   }
+
+window.location.href = "/dashboard";
+}
 
   return (
     <main className="admin-login">
@@ -66,6 +65,21 @@ export default function AdminPage() {
         </p>
 
         <div className="admin-line" />
+        
+        {error && (
+  <div
+    style={{
+      color: "#dc2626",
+      background: "#fee2e2",
+      padding: "10px 14px",
+      borderRadius: "8px",
+      marginBottom: "16px",
+      fontSize: "14px",
+    }}
+  >
+    {error}
+  </div>
+)}
 
         <form onSubmit={handleLogin}>
 
