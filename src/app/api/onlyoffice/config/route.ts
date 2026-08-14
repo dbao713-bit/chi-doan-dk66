@@ -1,22 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
 export const runtime = "nodejs";
 
+const BUCKET = "announcement-documents";
+
 /**
- * ---------------------------------------------------------
+ * =========================================================
+ * SUPABASE ADMIN CLIENT
+ * =========================================================
+ */
+
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error(
+      "Thiếu SUPABASE_URL trong biến môi trường."
+    );
+  }
+
+  if (!supabaseSecretKey) {
+    throw new Error(
+      "Thiếu SUPABASE_SECRET_KEY trong biến môi trường."
+    );
+  }
+
+  return createClient(
+    supabaseUrl,
+    supabaseSecretKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+/**
+ * =========================================================
  * ONLYOFFICE NETWORK URL
- * ---------------------------------------------------------
- *
- * ONLYOFFICE chạy trong Docker.
- *
- * Docker gọi Next.js thông qua:
- *
- * http://host.docker.internal:3000
- *
- * ---------------------------------------------------------
+ * =========================================================
  */
 
 function getOnlyOfficeHostUrl() {
@@ -27,9 +54,9 @@ function getOnlyOfficeHostUrl() {
 }
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * VALID DOCUMENT ID
- * ---------------------------------------------------------
+ * =========================================================
  */
 
 function isValidDocumentId(id: string) {
@@ -37,9 +64,9 @@ function isValidDocumentId(id: string) {
 }
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * GET CONFIG
- * ---------------------------------------------------------
+ * =========================================================
  */
 
 export async function GET(request: NextRequest) {
@@ -67,15 +94,6 @@ export async function GET(request: NextRequest) {
      * -------------------------------------------------------
      * MODE
      * -------------------------------------------------------
-     *
-     * edit:
-     *   Cho phép chỉnh sửa.
-     *
-     * view:
-     *   Chỉ xem.
-     *
-     * Mặc định là edit để không phá
-     * các trang cũ đang sử dụng Editor.
      */
 
     const mode =
@@ -158,39 +176,89 @@ export async function GET(request: NextRequest) {
 
     /**
      * -------------------------------------------------------
-     * FILE PATH
+     * SUPABASE
      * -------------------------------------------------------
      */
 
-    const filePath =
-      path.join(
-        process.cwd(),
-        "public",
-        "documents",
-        `${documentId}.docx`
-      );
+    const supabase =
+      getSupabaseAdmin();
+
+    /**
+     * -------------------------------------------------------
+     * FILE NAME
+     * -------------------------------------------------------
+     *
+     * Ví dụ:
+     *
+     * documentId:
+     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e
+     *
+     * file:
+     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e.docx
+     */
+
+    const fileName =
+      `${documentId}.docx`;
 
     console.log(
-      "[ONLYOFFICE CONFIG] filePath:",
-      filePath
+      "[ONLYOFFICE CONFIG] bucket:",
+      BUCKET
+    );
+
+    console.log(
+      "[ONLYOFFICE CONFIG] fileName:",
+      fileName
     );
 
     /**
      * -------------------------------------------------------
-     * CHECK FILE
+     * KIỂM TRA FILE TRONG SUPABASE STORAGE
      * -------------------------------------------------------
      */
 
-    if (!fs.existsSync(filePath)) {
+    const {
+      data: files,
+      error: listError,
+    } = await supabase.storage
+      .from(BUCKET)
+      .list("", {
+        search: fileName,
+        limit: 100,
+      });
+
+    if (listError) {
       console.error(
-        "[ONLYOFFICE CONFIG] File không tồn tại:",
-        filePath
+        "[ONLYOFFICE CONFIG] Storage list error:",
+        listError
       );
 
       return NextResponse.json(
         {
           error:
-            `Không tìm thấy tài liệu ${documentId}.docx`,
+            `Không thể kiểm tra file trong Supabase Storage: ${listError.message}`,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const fileExists =
+      files?.some(
+        (file) =>
+          file.name === fileName
+      );
+
+    if (!fileExists) {
+      console.error(
+        "[ONLYOFFICE CONFIG] File không tồn tại:",
+        fileName
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            `Không tìm thấy ${fileName} trong bucket ${BUCKET}.`,
         },
         {
           status: 404,
@@ -198,41 +266,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /**
-     * -------------------------------------------------------
-     * FILE VERSION
-     * -------------------------------------------------------
-     *
-     * Dùng mtime của file để tạo document key.
-     *
-     * Khi callback lưu DOCX mới:
-     *
-     * public/documents/<documentId>.docx
-     *
-     * mtime thay đổi.
-     *
-     * documentKey cũng thay đổi.
-     */
-
-    const stat =
-      fs.statSync(filePath);
-
-    const version =
-      Math.floor(stat.mtimeMs);
-
     console.log(
-      "[ONLYOFFICE CONFIG] version:",
-      version
+      "[ONLYOFFICE CONFIG] File exists in Supabase Storage."
     );
 
     /**
      * -------------------------------------------------------
      * DOCUMENT KEY
      * -------------------------------------------------------
+     *
+     * Không dùng fs.statSync nữa vì DOCX nằm trên
+     * Supabase Storage.
+     *
+     * Dùng timestamp để tạo key.
      */
+
+    const version =
+      Date.now();
 
     const documentKey =
       `oo-${documentId}-${version}`;
+
+    console.log(
+      "[ONLYOFFICE CONFIG] version:",
+      version
+    );
 
     console.log(
       "[ONLYOFFICE CONFIG] documentKey:",
@@ -259,8 +317,10 @@ export async function GET(request: NextRequest) {
      * PUBLIC URL
      * -------------------------------------------------------
      *
-     * ONLYOFFICE Docker sẽ dùng URL này
-     * để lấy DOCX và gọi callback.
+     * ONLYOFFICE sẽ dùng URL này để:
+     *
+     * 1. Tải DOCX
+     * 2. Gọi callback
      */
 
     const publicBaseUrl =
@@ -316,16 +376,6 @@ export async function GET(request: NextRequest) {
         url: documentUrl,
 
         permissions: {
-          /**
-           * EDIT:
-           *
-           * edit page:
-           * true
-           *
-           * detail page:
-           * false
-           */
-
           edit: editable,
 
           download: true,
@@ -343,16 +393,6 @@ export async function GET(request: NextRequest) {
       documentType: "word",
 
       editorConfig: {
-        /**
-         * edit:
-         *
-         * Có thể sửa DOCX.
-         *
-         * view:
-         *
-         * Chỉ xem DOCX.
-         */
-
         mode,
 
         lang: "vi",
@@ -404,6 +444,7 @@ export async function GET(request: NextRequest) {
 
       editable,
     });
+
   } catch (error) {
     console.error(
       "[ONLYOFFICE CONFIG ERROR]",

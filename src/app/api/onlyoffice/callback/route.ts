@@ -1,38 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
 export const runtime = "nodejs";
 
+const BUCKET = "announcement-documents";
+
 type OnlyOfficeCallbackBody = {
   key?: string;
-
   status?: number;
-
   url?: string;
-
   changesurl?: string;
-
   token?: string;
-
   users?: string[];
-
   actions?: Array<{
     type?: number;
     userid?: string;
   }>;
-
   history?: unknown;
-
   filetype?: string;
 };
 
 type OnlyOfficeTokenPayload = {
   key?: string;
-
   status?: number;
-
   [key: string]: unknown;
 };
 
@@ -41,23 +32,14 @@ function isValidDocumentId(id: string) {
 }
 
 /**
- * documentKey có dạng:
+ * documentKey:
  *
- * oo-test-docx-1786637787300
+ * oo-announcement-123-1786637787300
  *
- * Ta cần lấy:
+ * =>
  *
- * test-docx
- *
- * và version:
- *
- * 1786637787300
- *
- * Vì documentId có thể chứa dấu "-"
- * nên KHÔNG dùng split("-") đơn giản.
- *
- * Ta lấy phần sau "oo-" và tách
- * phần version cuối cùng.
+ * documentId = announcement-123
+ * version    = 1786637787300
  */
 function parseDocumentKey(key: string) {
   if (!key.startsWith("oo-")) {
@@ -66,11 +48,9 @@ function parseDocumentKey(key: string) {
     );
   }
 
-  const value =
-    key.substring(3);
+  const value = key.substring(3);
 
-  const lastDash =
-    value.lastIndexOf("-");
+  const lastDash = value.lastIndexOf("-");
 
   if (lastDash <= 0) {
     throw new Error(
@@ -108,6 +88,44 @@ function parseDocumentKey(key: string) {
   };
 }
 
+/**
+ * =========================================================
+ * SUPABASE ADMIN
+ * =========================================================
+ *
+ * Dùng SUPABASE_SECRET_KEY ở SERVER ONLY.
+ */
+function getSupabaseAdmin() {
+  const supabaseUrl =
+    process.env.SUPABASE_URL;
+
+  const supabaseSecretKey =
+    process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error(
+      "Thiếu SUPABASE_URL."
+    );
+  }
+
+  if (!supabaseSecretKey) {
+    throw new Error(
+      "Thiếu SUPABASE_SECRET_KEY."
+    );
+  }
+
+  return createClient(
+    supabaseUrl,
+    supabaseSecretKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
 export async function POST(
   request: NextRequest
 ) {
@@ -118,9 +136,9 @@ export async function POST(
 
   try {
     /**
-     * ---------------------------------------------------------
-     * READ BODY
-     * ---------------------------------------------------------
+     * =======================================================
+     * 1. READ BODY
+     * =======================================================
      */
 
     const body =
@@ -132,7 +150,6 @@ export async function POST(
     );
 
     const status = body.status;
-
     const key = body.key;
 
     console.log(
@@ -151,9 +168,9 @@ export async function POST(
     );
 
     /**
-     * ---------------------------------------------------------
-     * BASIC VALIDATION
-     * ---------------------------------------------------------
+     * =======================================================
+     * 2. CHECK KEY
+     * =======================================================
      */
 
     if (!key) {
@@ -172,9 +189,9 @@ export async function POST(
     }
 
     /**
-     * ---------------------------------------------------------
-     * JWT VERIFY
-     * ---------------------------------------------------------
+     * =======================================================
+     * 3. JWT VERIFY
+     * =======================================================
      */
 
     const jwtSecret =
@@ -241,8 +258,7 @@ export async function POST(
     }
 
     /**
-     * Kiểm tra key trong JWT phải trùng
-     * key trong callback body.
+     * JWT key phải trùng callback key.
      */
 
     if (
@@ -264,25 +280,9 @@ export async function POST(
     }
 
     /**
-     * ---------------------------------------------------------
-     * STATUS
-     * ---------------------------------------------------------
-     *
-     * ONLYOFFICE callback:
-     *
-     * 1 = document opened
-     * 2 = document ready for saving
-     * 3 = saving error
-     * 4 = document closed without changes
-     * 6 = force save
-     *
-     * Ta chỉ cần download khi:
-     *
-     * status === 2
-     *
-     * hoặc:
-     *
-     * status === 6
+     * =======================================================
+     * 4. ONLY SAVE STATUS 2 / 6
+     * =======================================================
      */
 
     if (
@@ -299,9 +299,9 @@ export async function POST(
     }
 
     /**
-     * ---------------------------------------------------------
-     * PARSE DOCUMENT KEY
-     * ---------------------------------------------------------
+     * =======================================================
+     * 5. PARSE DOCUMENT KEY
+     * =======================================================
      */
 
     const {
@@ -321,9 +321,9 @@ export async function POST(
     );
 
     /**
-     * ---------------------------------------------------------
-     * URL
-     * ---------------------------------------------------------
+     * =======================================================
+     * 6. CHECK ONLYOFFICE FILE URL
+     * =======================================================
      */
 
     if (!body.url) {
@@ -342,46 +342,9 @@ export async function POST(
     }
 
     /**
-     * ---------------------------------------------------------
-     * TARGET FILE
-     * ---------------------------------------------------------
-     */
-
-    const documentsDir =
-      path.join(
-        process.cwd(),
-        "public",
-        "documents"
-      );
-
-    /**
-     * Đảm bảo thư mục tồn tại.
-     */
-
-    if (!fs.existsSync(documentsDir)) {
-      fs.mkdirSync(
-        documentsDir,
-        {
-          recursive: true,
-        }
-      );
-    }
-
-    const targetPath =
-      path.join(
-        documentsDir,
-        `${documentId}.docx`
-      );
-
-    console.log(
-      "[ONLYOFFICE CALLBACK] Target:",
-      targetPath
-    );
-
-    /**
-     * ---------------------------------------------------------
-     * DOWNLOAD OUTPUT DOCX
-     * ---------------------------------------------------------
+     * =======================================================
+     * 7. DOWNLOAD DOCX TỪ ONLYOFFICE
+     * =======================================================
      */
 
     console.log(
@@ -419,53 +382,115 @@ export async function POST(
     }
 
     /**
-     * ---------------------------------------------------------
-     * SAVE FILE
-     * ---------------------------------------------------------
+     * =======================================================
+     * 8. SUPABASE ADMIN CLIENT
+     * =======================================================
      */
 
-    fs.writeFileSync(
-      targetPath,
-      buffer
+    const supabase =
+      getSupabaseAdmin();
+
+    /**
+     * =======================================================
+     * 9. TARGET STORAGE FILE
+     * =======================================================
+     *
+     * Ví dụ:
+     *
+     * announcement-documents/
+     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e.docx
+     */
+
+    const targetFile =
+      `${documentId}.docx`;
+
+    console.log(
+      "[ONLYOFFICE CALLBACK] Storage bucket:",
+      BUCKET
     );
 
     console.log(
-      "[ONLYOFFICE CALLBACK] File saved:",
-      targetPath
+      "[ONLYOFFICE CALLBACK] Storage file:",
+      targetFile
     );
 
     /**
-     * ---------------------------------------------------------
-     * VERIFY FILE
-     * ---------------------------------------------------------
+     * =======================================================
+     * 10. UPLOAD DOCX VÀO SUPABASE STORAGE
+     * =======================================================
+     *
+     * upsert = true:
+     *
+     * Nếu file đã tồn tại:
+     * -> ghi đè file cũ.
+     *
+     * Nếu chưa tồn tại:
+     * -> tạo file mới.
      */
 
-    const savedStat =
-      fs.statSync(targetPath);
-
     console.log(
-      "[ONLYOFFICE CALLBACK] Size:",
-      savedStat.size,
-      "bytes"
+      "[ONLYOFFICE CALLBACK] Uploading to Supabase Storage..."
     );
 
+    const {
+      data: uploadData,
+      error: uploadError,
+    } =
+      await supabase.storage
+        .from(BUCKET)
+        .upload(
+          targetFile,
+          buffer,
+          {
+            contentType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+            upsert: true,
+
+            cacheControl: "3600",
+          }
+        );
+
+    if (uploadError) {
+      console.error(
+        "[ONLYOFFICE CALLBACK] Supabase upload error:",
+        uploadError
+      );
+
+      throw new Error(
+        `Không thể lưu DOCX vào Supabase Storage: ${uploadError.message}`
+      );
+    }
+
     console.log(
-      "[ONLYOFFICE CALLBACK] Saved file size:",
-      savedStat.size
+      "[ONLYOFFICE CALLBACK] Upload success:",
+      uploadData
     );
+
+    /**
+     * =======================================================
+     * 11. RESPONSE
+     * =======================================================
+     */
 
     console.log(
       `[ONLYOFFICE CALLBACK] Save completed successfully. status=${status}`
     );
 
-    /**
-     * ---------------------------------------------------------
-     * RESPONSE
-     * ---------------------------------------------------------
-     */
-
     return NextResponse.json({
       error: 0,
+
+      ok: true,
+
+      documentId,
+
+      documentKey: key,
+
+      version,
+
+      bucket: BUCKET,
+
+      file: targetFile,
     });
   } catch (error) {
     console.error(
@@ -476,6 +501,11 @@ export async function POST(
     return NextResponse.json(
       {
         error: 1,
+
+        message:
+          error instanceof Error
+            ? error.message
+            : "Không thể lưu tài liệu.",
       },
       {
         status: 500,
