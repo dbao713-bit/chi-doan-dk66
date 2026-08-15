@@ -1,22 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, UserCircle2 } from "lucide-react";
+import { Bell, Menu, ShieldCheck, UserCircle2 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 export default function Header() {
   const { collapsed, setCollapsed } = useSidebar();
 
   return (
-    <header className="mb-8 flex h-20 items-center justify-between rounded-2xl border border-gray-200 bg-white px-8 shadow-sm">
+    <header className="mb-8 flex min-h-20 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm sm:px-6 lg:px-8">
 
       {/* Bên trái */}
-      <div className="flex items-center gap-5">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-5">
 
         {/* Nút thu / mở Sidebar */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="rounded-xl p-2 transition hover:bg-gray-100"
+          className="shrink-0 rounded-xl p-2 transition hover:bg-gray-100"
+          aria-label="Mở hoặc thu Sidebar"
         >
           <Menu
             size={28}
@@ -24,12 +25,12 @@ export default function Header() {
           />
         </button>
 
-        <div>
-          <h2 className="text-xl font-bold text-[#005BAC]">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-bold text-[#005BAC] sm:text-xl">
             Hệ thống quản lý Chi đoàn D-K66
           </h2>
 
-          <p className="text-sm text-gray-500">
+          <p className="hidden text-sm text-gray-500 sm:block">
             Trường THPT Hà Trung
           </p>
         </div>
@@ -37,18 +38,37 @@ export default function Header() {
       </div>
 
       {/* Bên phải */}
-      <div className="flex items-center gap-6">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-6">
 
+        {/* Thông báo */}
         <Link
-  href="/dashboard/announcements"
-  className="relative rounded-xl p-2 transition hover:bg-gray-100"
->
-  <Bell size={24} />
+          href="/dashboard/announcements"
+          className="relative rounded-xl p-2 transition hover:bg-gray-100"
+          aria-label="Thông báo"
+        >
+          <Bell
+            size={22}
+            className="text-gray-700 sm:h-6 sm:w-6"
+          />
 
-  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
-</Link>
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 sm:right-2 sm:top-2" />
+        </Link>
 
-        <div className="flex items-center gap-3">
+        {/* Nút Admin - đặc biệt hữu ích trên điện thoại */}
+        <Link
+          href="/admin"
+          className="flex items-center gap-2 rounded-xl bg-[#005BAC] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#004a8f] sm:px-4"
+          aria-label="Đăng nhập Admin"
+        >
+          <ShieldCheck size={20} />
+
+          <span className="hidden sm:inline">
+            BCH / Admin
+          </span>
+        </Link>
+
+        {/* Thông tin Admin */}
+        <div className="hidden items-center gap-3 md:flex">
 
           <UserCircle2
             size={42}
@@ -56,7 +76,6 @@ export default function Header() {
           />
 
           <div>
-
             <p className="font-semibold">
               Admin
             </p>
@@ -64,7 +83,6 @@ export default function Header() {
             <p className="text-sm text-gray-500">
               BCH Chi Đoàn
             </p>
-
           </div>
 
         </div>
