@@ -86,17 +86,59 @@ const female = members.filter(
             </div>
           </a>
 
-          <nav className={`nav ${menuOpen ? "nav-open" : ""}`}>
-            <a href="#gioi-thieu">Giới thiệu</a>
-            <a href="#hoat-dong">Hoạt động</a>
-            <a href="#tai-lieu">Tài liệu</a>
-            <a href="#thu-vien">Thư viện</a>
-            <a href="#lien-he">Liên hệ</a>
-          </nav>
+         <nav className={`nav ${menuOpen ? "nav-open" : ""}`}>
+  <a
+    href="#gioi-thieu"
+    onClick={() => setMenuOpen(false)}
+  >
+    Giới thiệu
+  </a>
 
-          <a href="/admin" className="admin-button">
+  <a
+    href="#hoat-dong"
+    onClick={() => setMenuOpen(false)}
+  >
+    Hoạt động
+  </a>
+
+  <a
+    href="#tai-lieu"
+    onClick={() => setMenuOpen(false)}
+  >
+    Tài liệu
+  </a>
+
+  <a
+    href="#thu-vien"
+    onClick={() => setMenuOpen(false)}
+  >
+    Thư viện
+  </a>
+
+  <a
+    href="#lien-he"
+    onClick={() => setMenuOpen(false)}
+  >
+    Liên hệ
+  </a>
+
+  {/* Đăng nhập BCH / Admin */}
+  <Link
+    href="/admin"
+    onClick={() => setMenuOpen(false)}
+    className="mobile-admin-link"
+  >
+    🔐 Đăng nhập BCH / Admin
+  </Link>
+</nav>
+
+{/* Nút Admin trên desktop */}
+<Link
+  href="/admin"
+  className="admin-button"
+>
   BCH / ADMIN
-</a>
+</Link>
 
           <button
             className="mobile-menu"
@@ -237,32 +279,85 @@ const female = members.filter(
       {/* ================= BCH ================= */}
       <section className="section bch-section">
 
-        <div className="section-heading">
-          <span className="section-number">02</span>
+  <div className="section-heading">
+    <span className="section-number">02</span>
 
-          <div>
-            <span className="eyebrow">BAN CHẤP HÀNH</span>
-            <h2>BCH Chi đoàn</h2>
-          </div>
-        </div>
+    <div>
+      <span className="eyebrow">BAN CHẤP HÀNH</span>
+      <h2>BCH Chi đoàn</h2>
+    </div>
+  </div>
 
-        <div className="bch-placeholder">
+  <div className="bch-grid">
 
-          <div className="placeholder-icon">♢</div>
+    {/* NGƯỜI 1 */}
+    <article className="bch-person">
+      <div className="bch-photo">
+        <Image
+          src="/bch-1.jpg"
+          alt="Bí thư Chi đoàn D-K66"
+          fill
+          sizes="(max-width: 800px) 100vw, 33vw"
+        />
+      </div>
 
-          <h3>Ban Chấp hành Chi đoàn D-K66</h3>
+      <div className="bch-info">
+        <span className="bch-role">BÍ THƯ CHI ĐOÀN</span>
+        <h3>Nguyễn Thị Huyền</h3>
+        <p>
+          Phụ trách công tác chung của Chi đoàn,
+          tổ chức và điều hành các hoạt động.
+        </p>
+      </div>
+    </article>
 
-          <p>
-            Thông tin BCH sẽ được cập nhật tại đây.
-          </p>
 
-          <span>
-            Bạn có thể thêm ảnh, chức vụ và thông tin liên hệ sau.
-          </span>
+    {/* NGƯỜI 2 */}
+    <article className="bch-person">
+      <div className="bch-photo">
+        <Image
+          src="/bch-2.jpg"
+          alt="Phó Bí thư Chi đoàn D-K66"
+          fill
+          sizes="(max-width: 800px) 100vw, 33vw"
+        />
+      </div>
 
-        </div>
+      <div className="bch-info">
+        <span className="bch-role">PHÓ BÍ THƯ CHI ĐOÀN</span>
+        <h3>Đinh Anh Bảo</h3>
+        <p>
+          Phối hợp tổ chức các hoạt động,
+          phong trào và công tác đoàn viên.
+        </p>
+      </div>
+    </article>
 
-      </section>
+
+    {/* NGƯỜI 3 */}
+    <article className="bch-person">
+      <div className="bch-photo">
+        <Image
+          src="/bch-3.jpg"
+          alt="Ủy viên BCH Chi đoàn D-K66"
+          fill
+          sizes="(max-width: 800px) 100vw, 33vw"
+        />
+      </div>
+
+      <div className="bch-info">
+        <span className="bch-role">ỦY VIÊN BCH</span>
+        <h3>Đỗ Ngọc Châu</h3>
+        <p>
+          Tham gia xây dựng phong trào,
+          hỗ trợ công tác và hoạt động của Chi đoàn.
+        </p>
+      </div>
+    </article>
+
+  </div>
+
+</section>
 
 
       {/* ================= HOẠT ĐỘNG ================= */}
