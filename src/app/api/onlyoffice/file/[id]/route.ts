@@ -5,28 +5,20 @@ export const runtime = "nodejs";
 
 const BUCKET = "announcement-documents";
 
-/**
- * =========================================================
- * SUPABASE ADMIN CLIENT
- * =========================================================
- */
-
 function getSupabaseAdmin() {
-  const supabaseUrl =
-    process.env.SUPABASE_URL;
-
+  const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecretKey =
     process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl) {
     throw new Error(
-      "Thiếu SUPABASE_URL trong biến môi trường."
+      "Thiếu SUPABASE_URL."
     );
   }
 
   if (!supabaseSecretKey) {
     throw new Error(
-      "Thiếu SUPABASE_SECRET_KEY trong biến môi trường."
+      "Thiếu SUPABASE_SECRET_KEY."
     );
   }
 
@@ -42,21 +34,9 @@ function getSupabaseAdmin() {
   );
 }
 
-/**
- * =========================================================
- * VALID DOCUMENT ID
- * =========================================================
- */
-
 function isValidDocumentId(id: string) {
   return /^[a-zA-Z0-9_-]+$/.test(id);
 }
-
-/**
- * =========================================================
- * GET DOCUMENT
- * =========================================================
- */
 
 export async function GET(
   request: NextRequest,
@@ -66,16 +46,11 @@ export async function GET(
     }>;
   }
 ) {
-  console.log("\n========================================");
-  console.log("[ONLYOFFICE FILE] GET");
+  console.log(
+    "[ONLYOFFICE FILE] GET"
+  );
 
   try {
-    /**
-     * -------------------------------------------------------
-     * 1. LẤY DOCUMENT ID
-     * -------------------------------------------------------
-     */
-
     const { id } =
       await context.params;
 
@@ -83,12 +58,6 @@ export async function GET(
       "[ONLYOFFICE FILE] documentId:",
       id
     );
-
-    /**
-     * -------------------------------------------------------
-     * 2. KIỂM TRA ID
-     * -------------------------------------------------------
-     */
 
     if (!id) {
       return NextResponse.json(
@@ -114,76 +83,35 @@ export async function GET(
       );
     }
 
-    /**
-     * -------------------------------------------------------
-     * 3. TÊN FILE
-     * -------------------------------------------------------
-     *
-     * Ví dụ:
-     *
-     * id:
-     * announcement-123
-     *
-     * =>
-     *
-     * announcement-123.docx
-     */
-
     const fileName =
       `${id}.docx`;
-
-    console.log(
-      "[ONLYOFFICE FILE] bucket:",
-      BUCKET
-    );
-
-    console.log(
-      "[ONLYOFFICE FILE] fileName:",
-      fileName
-    );
-
-    /**
-     * -------------------------------------------------------
-     * 4. SUPABASE ADMIN CLIENT
-     * -------------------------------------------------------
-     */
 
     const supabase =
       getSupabaseAdmin();
 
-    /**
-     * -------------------------------------------------------
-     * 5. DOWNLOAD FILE TỪ SUPABASE STORAGE
-     * -------------------------------------------------------
-     */
-
     console.log(
-      "[ONLYOFFICE FILE] Downloading from Supabase..."
+      "[ONLYOFFICE FILE] Downloading:",
+      fileName
     );
 
     const {
       data,
       error,
-    } = await supabase.storage
-      .from(BUCKET)
-      .download(fileName);
-
-    /**
-     * -------------------------------------------------------
-     * 6. KIỂM TRA LỖI
-     * -------------------------------------------------------
-     */
+    } =
+      await supabase.storage
+        .from(BUCKET)
+        .download(fileName);
 
     if (error) {
       console.error(
-        "[ONLYOFFICE FILE] Supabase download error:",
+        "[ONLYOFFICE FILE] Supabase error:",
         error
       );
 
       return NextResponse.json(
         {
           error:
-            `Không tìm thấy tài liệu ${fileName}: ${error.message}`,
+            `Không tìm thấy ${fileName}: ${error.message}`,
         },
         {
           status: 404,
@@ -192,14 +120,10 @@ export async function GET(
     }
 
     if (!data) {
-      console.error(
-        "[ONLYOFFICE FILE] Supabase không trả về file."
-      );
-
       return NextResponse.json(
         {
           error:
-            `Supabase không trả về tài liệu ${fileName}.`,
+            "Supabase không trả về file.",
         },
         {
           status: 404,
@@ -207,26 +131,13 @@ export async function GET(
       );
     }
 
-    /**
-     * -------------------------------------------------------
-     * 7. CHUYỂN BLOB → ARRAY BUFFER
-     * -------------------------------------------------------
-     */
-
     const arrayBuffer =
       await data.arrayBuffer();
 
     console.log(
       "[ONLYOFFICE FILE] File size:",
-      arrayBuffer.byteLength,
-      "bytes"
+      arrayBuffer.byteLength
     );
-
-    /**
-     * -------------------------------------------------------
-     * 8. TRẢ FILE DOCX CHO ONLYOFFICE
-     * -------------------------------------------------------
-     */
 
     return new NextResponse(
       arrayBuffer,
@@ -248,7 +159,6 @@ export async function GET(
         },
       }
     );
-
   } catch (error) {
     console.error(
       "[ONLYOFFICE FILE] ERROR:",

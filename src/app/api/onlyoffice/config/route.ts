@@ -42,19 +42,6 @@ function getSupabaseAdmin() {
 
 /**
  * =========================================================
- * ONLYOFFICE NETWORK URL
- * =========================================================
- */
-
-function getOnlyOfficeHostUrl() {
-  return (
-    process.env.ONLYOFFICE_PUBLIC_URL ||
-    "http://host.docker.internal:3000"
-  );
-}
-
-/**
- * =========================================================
  * VALID DOCUMENT ID
  * =========================================================
  */
@@ -65,36 +52,80 @@ function isValidDocumentId(id: string) {
 
 /**
  * =========================================================
+ * GET PUBLIC APP URL
+ * =========================================================
+ *
+ * Đây là URL của Next.js/Vercel.
+ *
+ * KHÔNG phải URL OnlyOffice.
+ */
+
+function getAppPublicUrl() {
+  const url =
+    process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!url) {
+    throw new Error(
+      "Thiếu NEXT_PUBLIC_SITE_URL."
+    );
+  }
+
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * =========================================================
+ * GET ONLYOFFICE SERVER URL
+ * =========================================================
+ *
+ * Đây là URL public của OnlyOffice Docker
+ * thông qua Cloudflare Tunnel.
+ */
+
+function getOnlyOfficeServerUrl() {
+  const url =
+    process.env.ONLYOFFICE_URL;
+
+  if (!url) {
+    throw new Error(
+      "Thiếu ONLYOFFICE_URL."
+    );
+  }
+
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * =========================================================
  * GET CONFIG
  * =========================================================
  */
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest
+) {
   console.log("\n========================================");
-  console.log("[ONLYOFFICE CONFIG] GET started");
+  console.log(
+    "[ONLYOFFICE CONFIG] GET started"
+  );
 
   try {
+    /**
+     * =======================================================
+     * 1. REQUEST PARAMETERS
+     * =======================================================
+     */
+
     const { searchParams } =
       new URL(request.url);
-
-    /**
-     * -------------------------------------------------------
-     * DOCUMENT
-     * -------------------------------------------------------
-     */
 
     const documentId =
       searchParams.get("documentId");
 
     const documentTitle =
-      searchParams.get("documentTitle") ||
-      "Thông báo.docx";
-
-    /**
-     * -------------------------------------------------------
-     * MODE
-     * -------------------------------------------------------
-     */
+      searchParams.get(
+        "documentTitle"
+      ) || "Thông báo.docx";
 
     const mode =
       searchParams.get("mode") === "view"
@@ -125,15 +156,16 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * CHECK DOCUMENT ID
-     * -------------------------------------------------------
+     * =======================================================
+     * 2. VALIDATE DOCUMENT ID
+     * =======================================================
      */
 
     if (!documentId) {
       return NextResponse.json(
         {
-          error: "Thiếu documentId.",
+          error:
+            "Thiếu documentId.",
         },
         {
           status: 400,
@@ -141,7 +173,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!isValidDocumentId(documentId)) {
+    if (
+      !isValidDocumentId(
+        documentId
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -154,9 +190,9 @@ export async function GET(request: NextRequest) {
     }
 
     /**
-     * -------------------------------------------------------
-     * JWT SECRET
-     * -------------------------------------------------------
+     * =======================================================
+     * 3. JWT SECRET
+     * =======================================================
      */
 
     const jwtSecret =
@@ -175,26 +211,18 @@ export async function GET(request: NextRequest) {
     }
 
     /**
-     * -------------------------------------------------------
-     * SUPABASE
-     * -------------------------------------------------------
+     * =======================================================
+     * 4. SUPABASE
+     * =======================================================
      */
 
     const supabase =
       getSupabaseAdmin();
 
     /**
-     * -------------------------------------------------------
-     * FILE NAME
-     * -------------------------------------------------------
-     *
-     * Ví dụ:
-     *
-     * documentId:
-     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e
-     *
-     * file:
-     * announcement-ca60bd73-b17d-4ced-9acb-5fbc72d5730e.docx
+     * =======================================================
+     * 5. FILE NAME
+     * =======================================================
      */
 
     const fileName =
@@ -211,20 +239,21 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * KIỂM TRA FILE TRONG SUPABASE STORAGE
-     * -------------------------------------------------------
+     * =======================================================
+     * 6. CHECK FILE IN SUPABASE STORAGE
+     * =======================================================
      */
 
     const {
       data: files,
       error: listError,
-    } = await supabase.storage
-      .from(BUCKET)
-      .list("", {
-        search: fileName,
-        limit: 100,
-      });
+    } =
+      await supabase.storage
+        .from(BUCKET)
+        .list("", {
+          search: fileName,
+          limit: 100,
+        });
 
     if (listError) {
       console.error(
@@ -267,18 +296,13 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      "[ONLYOFFICE CONFIG] File exists in Supabase Storage."
+      "[ONLYOFFICE CONFIG] File exists."
     );
 
     /**
-     * -------------------------------------------------------
-     * DOCUMENT KEY
-     * -------------------------------------------------------
-     *
-     * Không dùng fs.statSync nữa vì DOCX nằm trên
-     * Supabase Storage.
-     *
-     * Dùng timestamp để tạo key.
+     * =======================================================
+     * 7. DOCUMENT KEY
+     * =======================================================
      */
 
     const version =
@@ -298,47 +322,47 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * ONLYOFFICE DOCUMENT SERVER
-     * -------------------------------------------------------
+     * =======================================================
+     * 8. URLS
+     * =======================================================
+     *
+     * APP:
+     *
+     * https://cd-dk66-thpthatrung-thanhhoa-vn.vercel.app
+     *
+     * ONLYOFFICE:
+     *
+     * https://twice-pty-manufactured-penny.trycloudflare.com
      */
 
-    const documentServerUrl =
-      process.env.ONLYOFFICE_URL ||
-      "http://localhost:8080";
+    const appPublicUrl =
+      getAppPublicUrl();
+
+    const onlyOfficeServerUrl =
+      getOnlyOfficeServerUrl();
 
     console.log(
-      "[ONLYOFFICE CONFIG] documentServerUrl:",
-      documentServerUrl
+      "[ONLYOFFICE CONFIG] appPublicUrl:",
+      appPublicUrl
+    );
+
+    console.log(
+      "[ONLYOFFICE CONFIG] onlyOfficeServerUrl:",
+      onlyOfficeServerUrl
     );
 
     /**
-     * -------------------------------------------------------
-     * PUBLIC URL
-     * -------------------------------------------------------
+     * =======================================================
+     * 9. DOCUMENT URL
+     * =======================================================
      *
-     * ONLYOFFICE sẽ dùng URL này để:
+     * ONLYOFFICE sẽ gọi URL này để tải DOCX.
      *
-     * 1. Tải DOCX
-     * 2. Gọi callback
-     */
-
-    const publicBaseUrl =
-      getOnlyOfficeHostUrl();
-
-    console.log(
-      "[ONLYOFFICE CONFIG] publicBaseUrl:",
-      publicBaseUrl
-    );
-
-    /**
-     * -------------------------------------------------------
-     * DOCUMENT URL
-     * -------------------------------------------------------
+     * URL này PHẢI trỏ về Vercel.
      */
 
     const documentUrl =
-      `${publicBaseUrl}/api/onlyoffice/file/${documentId}`;
+      `${appPublicUrl}/api/onlyoffice/file/${documentId}`;
 
     console.log(
       "[ONLYOFFICE CONFIG] documentUrl:",
@@ -346,13 +370,18 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * CALLBACK URL
-     * -------------------------------------------------------
+     * =======================================================
+     * 10. CALLBACK URL
+     * =======================================================
+     *
+     * ONLYOFFICE sẽ gọi callback này
+     * sau khi người dùng lưu tài liệu.
+     *
+     * URL này PHẢI trỏ về Vercel.
      */
 
     const callbackUrl =
-      `${publicBaseUrl}/api/onlyoffice/callback`;
+      `${appPublicUrl}/api/onlyoffice/callback`;
 
     console.log(
       "[ONLYOFFICE CONFIG] callbackUrl:",
@@ -360,9 +389,9 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * ONLYOFFICE CONFIG
-     * -------------------------------------------------------
+     * =======================================================
+     * 11. ONLYOFFICE CONFIG
+     * =======================================================
      */
 
     const config = {
@@ -400,6 +429,12 @@ export async function GET(request: NextRequest) {
         callbackUrl,
       },
 
+      /**
+       * desktop:
+       *
+       * OnlyOffice editor chạy trong trình duyệt.
+       */
+
       type: "desktop",
     };
 
@@ -408,9 +443,9 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * JWT
-     * -------------------------------------------------------
+     * =======================================================
+     * 12. JWT
+     * =======================================================
      */
 
     const token =
@@ -424,9 +459,24 @@ export async function GET(request: NextRequest) {
     );
 
     /**
-     * -------------------------------------------------------
-     * RESPONSE
-     * -------------------------------------------------------
+     * =======================================================
+     * 13. RESPONSE
+     * =======================================================
+     *
+     * documentServerUrl:
+     *
+     * -> trình duyệt dùng URL này để
+     *    kết nối tới OnlyOffice Docker.
+     *
+     * config.document.url:
+     *
+     * -> OnlyOffice dùng URL Vercel
+     *    để lấy DOCX.
+     *
+     * config.editorConfig.callbackUrl:
+     *
+     * -> OnlyOffice dùng URL Vercel
+     *    để callback khi lưu.
      */
 
     return NextResponse.json({
@@ -438,7 +488,8 @@ export async function GET(request: NextRequest) {
         token,
       },
 
-      documentServerUrl,
+      documentServerUrl:
+        onlyOfficeServerUrl,
 
       mode,
 
