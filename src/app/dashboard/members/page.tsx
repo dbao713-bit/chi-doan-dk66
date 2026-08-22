@@ -49,24 +49,27 @@ export default function MembersPage() {
   const [deleteName, setDeleteName] = useState("");
 
   useEffect(() => {
-    async function loadMembers() {
-      const { data, error } = await supabase
-        .from("members")
-        .select("*")
-        .order("id");
-       
-        console.table(data);
+  async function loadMembers() {
+    console.time("LOAD MEMBERS");
 
-      if (error) {
-        console.log(error);
-        return;
-      }
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .order("id");
 
-      setMembers(data ?? []);
+    console.timeEnd("LOAD MEMBERS");
+
+    if (error) {
+      console.log(error);
+      return;
     }
 
-    loadMembers();
-  }, []);
+    console.table(data);
+    setMembers(data ?? []);
+  }
+
+  loadMembers();
+}, []);
 
  async function deleteMember(id: number) {
   const { error } = await supabase
@@ -143,6 +146,7 @@ const weakCount = members.filter(
             />
 
 <div className="flex gap-3">
+
   <button
   onClick={async () => {
     await exportMembersToExcel(filteredMembers);
@@ -168,6 +172,7 @@ const weakCount = members.filter(
 >
   📕 Xuất PDF
 </button>
+
 </div>
 
             <Link

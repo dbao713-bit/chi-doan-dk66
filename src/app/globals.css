@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -1880,19 +1880,6 @@ button {
   html {
     @apply font-sans;
   }
-}
-.ProseMirror {
-  min-height: 400px;
-  outline: none;
-  cursor: text;
-}
-
-.ProseMirror p {
-  margin: 0.75rem 0;
-}
-
-.ProseMirror:focus {
-  outline: none;
 }
 
 /* ================================
