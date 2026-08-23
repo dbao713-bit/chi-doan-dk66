@@ -290,6 +290,9 @@ const weakCount = members.filter(
                   Giới tính
                 </th>
                 <th className="px-6 py-4 text-left">
+                  Tổng điểm
+                </th>
+                <th className="px-6 py-4 text-left">
                   Xếp loại
                 </th>
 
@@ -359,6 +362,9 @@ const weakCount = members.filter(
                     </span>
                   </td>
 
+                  <td className="px-6 py-4">
+                    {member.total_score ?? "—"}
+                  </td>
                   <td className="px-6 py-4">
   <span
     className={`rounded-full px-3 py-1 text-sm font-medium ${
