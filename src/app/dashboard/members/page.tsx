@@ -39,7 +39,12 @@ type Member = {
   class_name: string;
   gender: string;
   avatar: string | null;
-  rating: string;
+  conduct_score: number | null;
+  activity_score: number | null;
+  volunteer_score: number | null;
+  discipline_score: number | null;
+  total_score: number | null;
+  rating: string | null;
 };
 
 export default function MembersPage() {
