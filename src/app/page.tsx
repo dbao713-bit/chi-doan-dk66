@@ -52,15 +52,15 @@ export default function Home() {
     setAnnouncements(data ?? []);
   }
 
-const total = members.length;
+  const total = members.length;
 
-const male = members.filter(
-  (m) => m.gender === "Nam"
-).length;
+  const male = members.filter(
+    (m) => m.gender === "Nam"
+  ).length;
 
-const female = members.filter(
-  (m) => m.gender === "Nữ"
-).length;
+  const female = members.filter(
+    (m) => m.gender === "Nữ"
+  ).length;
 
   return (
     <main className="site">
@@ -86,59 +86,61 @@ const female = members.filter(
             </div>
           </a>
 
-         <nav className={`nav ${menuOpen ? "nav-open" : ""}`}>
-  <a
-    href="#gioi-thieu"
-    onClick={() => setMenuOpen(false)}
-  >
-    Giới thiệu
-  </a>
+          <nav className={`nav ${menuOpen ? "nav-open" : ""}`}>
 
-  <a
-    href="#hoat-dong"
-    onClick={() => setMenuOpen(false)}
-  >
-    Hoạt động
-  </a>
+            <a
+              href="#gioi-thieu"
+              onClick={() => setMenuOpen(false)}
+            >
+              Giới thiệu
+            </a>
 
-  <a
-    href="#tai-lieu"
-    onClick={() => setMenuOpen(false)}
-  >
-    Tài liệu
-  </a>
+            <a
+              href="#hoat-dong"
+              onClick={() => setMenuOpen(false)}
+            >
+              Hoạt động
+            </a>
 
-  <a
-    href="#thu-vien"
-    onClick={() => setMenuOpen(false)}
-  >
-    Thư viện
-  </a>
+            <a
+              href="#tai-lieu"
+              onClick={() => setMenuOpen(false)}
+            >
+              Tài liệu
+            </a>
 
-  <a
-    href="#lien-he"
-    onClick={() => setMenuOpen(false)}
-  >
-    Liên hệ
-  </a>
+            <a
+              href="#thu-vien"
+              onClick={() => setMenuOpen(false)}
+            >
+              Thư viện
+            </a>
 
-  {/* Đăng nhập BCH / Admin */}
-  <Link
-    href="/admin"
-    onClick={() => setMenuOpen(false)}
-    className="mobile-admin-link"
-  >
-    🔐 Đăng nhập BCH / Admin
-  </Link>
-</nav>
+            <a
+              href="#lien-he"
+              onClick={() => setMenuOpen(false)}
+            >
+              Liên hệ
+            </a>
 
-{/* Nút Admin trên desktop */}
-<Link
-  href="/admin"
-  className="admin-button"
->
-  BCH / ADMIN
-</Link>
+            {/* Đăng nhập BCH / Admin trên mobile */}
+            <Link
+              href="/admin"
+              onClick={() => setMenuOpen(false)}
+              className="mobile-admin-link"
+            >
+              🔐 Đăng nhập BCH / Admin
+            </Link>
+
+          </nav>
+
+          {/* Nút Admin trên desktop */}
+          <Link
+            href="/admin"
+            className="admin-button"
+          >
+            BCH / ADMIN
+          </Link>
 
           <button
             className="mobile-menu"
@@ -159,7 +161,7 @@ const female = members.filter(
 
         <div className="hero-overlay" />
 
-        {/* Họa tiết trống đồng */}
+        {/* Họa tiết */}
         <div className="drum-pattern drum-one">✦</div>
         <div className="drum-pattern drum-two">✦</div>
 
@@ -188,29 +190,30 @@ const female = members.filter(
             Đoàn kết · Trách nhiệm · Tiên phong · Sáng tạo
           </p>
 
-
           {/* Thống kê */}
           <div className="stats">
 
-  <div className="stat">
-    <strong>{total}</strong>
-    <span>ĐOÀN VIÊN</span>
-  </div>
+            <div className="stat">
+              <strong>{total}</strong>
+              <span>ĐOÀN VIÊN</span>
+            </div>
 
-  <div className="stat">
-    <strong>{male}</strong>
-    <span>NAM</span>
-  </div>
+            <div className="stat">
+              <strong>{male}</strong>
+              <span>NAM</span>
+            </div>
 
-  <div className="stat">
-    <strong>{female}</strong>
-    <span>NỮ</span>
-  </div>
+            <div className="stat">
+              <strong>{female}</strong>
+              <span>NỮ</span>
+            </div>
 
-</div>
+          </div>
 
-
-          <a href="#gioi-thieu" className="hero-button">
+          <a
+            href="#gioi-thieu"
+            className="hero-button"
+          >
             KHÁM PHÁ CHI ĐOÀN
             <span>↓</span>
           </a>
@@ -220,41 +223,59 @@ const female = members.filter(
 
 
       {/* ================= GIỚI THIỆU ================= */}
-      <section id="gioi-thieu" className="section introduction">
+      <section
+        id="gioi-thieu"
+        className="section introduction"
+      >
 
         <div className="section-heading">
-          <span className="section-number">01</span>
+
+          <span className="section-number">
+            01
+          </span>
 
           <div>
-            <span className="eyebrow">VỀ CHÚNG TÔI</span>
-            <h2>Giới thiệu Chi đoàn</h2>
+            <span className="eyebrow">
+              VỀ CHÚNG TÔI
+            </span>
+
+            <h2>
+              Giới thiệu Chi đoàn
+            </h2>
           </div>
+
         </div>
 
         <div className="intro-grid">
 
           <div className="intro-text">
+
             <p className="lead">
-              Chi đoàn D-K66 là tập thể thanh niên thuộc Trường THPT Hà Trung,
-              nhiệm kỳ 2025 — 2028.
+              Chi đoàn D-K66 là tập thể thanh niên thuộc
+              Trường THPT Hà Trung, nhiệm kỳ 2025 — 2028.
             </p>
 
             <p>
-              Với tinh thần đoàn kết, trách nhiệm và sáng tạo, Chi đoàn hướng
-              tới xây dựng một tập thể học sinh năng động, tích cực tham gia
-              các hoạt động học tập, phong trào thanh niên và hoạt động xã hội.
+              Với tinh thần đoàn kết, trách nhiệm và sáng tạo,
+              Chi đoàn hướng tới xây dựng một tập thể học sinh
+              năng động, tích cực tham gia các hoạt động học tập,
+              phong trào thanh niên và hoạt động xã hội.
             </p>
 
             <p>
-              Website này được xây dựng như một không gian số riêng của Chi
-              đoàn, phục vụ công tác quản lý đoàn viên, lưu trữ tài liệu,
-              thông báo và ghi lại những hoạt động đáng nhớ của tập thể.
+              Website này được xây dựng như một không gian số
+              riêng của Chi đoàn, phục vụ công tác quản lý đoàn viên,
+              lưu trữ tài liệu, thông báo và ghi lại những hoạt động
+              đáng nhớ của tập thể.
             </p>
+
           </div>
 
           <div className="intro-card">
 
-            <div className="card-symbol">✦</div>
+            <div className="card-symbol">
+              ✦
+            </div>
 
             <h3>
               ĐOÀN KẾT
@@ -279,560 +300,736 @@ const female = members.filter(
       {/* ================= BCH ================= */}
       <section className="section bch-section">
 
-  <div className="section-heading">
-    <span className="section-number">02</span>
+        <div className="section-heading">
 
-    <div>
-      <span className="eyebrow">BAN CHẤP HÀNH</span>
-      <h2>BCH Chi đoàn</h2>
-    </div>
-  </div>
+          <span className="section-number">
+            02
+          </span>
 
-  <div className="bch-grid">
+          <div>
+            <span className="eyebrow">
+              BAN CHẤP HÀNH
+            </span>
 
-    {/* NGƯỜI 1 */}
-    <article className="bch-person">
-      <div className="bch-photo">
-        <Image
-          src="/bch-1.jpg"
-          alt="Bí thư Chi đoàn D-K66"
-          fill
-          sizes="(max-width: 800px) 100vw, 33vw"
-        />
-      </div>
+            <h2>
+              BCH Chi đoàn
+            </h2>
+          </div>
 
-      <div className="bch-info">
-        <span className="bch-role">BÍ THƯ CHI ĐOÀN</span>
-        <h3>Nguyễn Thị Huyền</h3>
-        <p>
-          Phụ trách công tác chung của Chi đoàn,
-          tổ chức và điều hành các hoạt động.
-        </p>
-      </div>
-    </article>
+        </div>
+
+        <div className="bch-grid">
+
+          {/* NGƯỜI 1 */}
+          <article className="bch-person">
+
+            <div className="bch-photo">
+
+              <Image
+                src="/bch-1.jpg"
+                alt="Bí thư Chi đoàn D-K66"
+                fill
+                sizes="(max-width: 800px) 100vw, 33vw"
+              />
+
+            </div>
+
+            <div className="bch-info">
+
+              <span className="bch-role">
+                BÍ THƯ CHI ĐOÀN
+              </span>
+
+              <h3>
+                Nguyễn Thị Huyền
+              </h3>
+
+              <p>
+                Phụ trách công tác chung của Chi đoàn,
+                tổ chức và điều hành các hoạt động.
+              </p>
+
+            </div>
+
+          </article>
 
 
-    {/* NGƯỜI 2 */}
-    <article className="bch-person">
-      <div className="bch-photo">
-        <Image
-          src="/bch-2.jpg"
-          alt="Phó Bí thư Chi đoàn D-K66"
-          fill
-          sizes="(max-width: 800px) 100vw, 33vw"
-        />
-      </div>
+          {/* NGƯỜI 2 */}
+          <article className="bch-person">
 
-      <div className="bch-info">
-        <span className="bch-role">PHÓ BÍ THƯ CHI ĐOÀN</span>
-        <h3>Đinh Anh Bảo</h3>
-        <p>
-          Phối hợp tổ chức các hoạt động,
-          phong trào và công tác đoàn viên.
-        </p>
-      </div>
-    </article>
+            <div className="bch-photo">
+
+              <Image
+                src="/bch-2.jpg"
+                alt="Phó Bí thư Chi đoàn D-K66"
+                fill
+                sizes="(max-width: 800px) 100vw, 33vw"
+              />
+
+            </div>
+
+            <div className="bch-info">
+
+              <span className="bch-role">
+                PHÓ BÍ THƯ CHI ĐOÀN
+              </span>
+
+              <h3>
+                Đinh Anh Bảo
+              </h3>
+
+              <p>
+                Phối hợp tổ chức các hoạt động,
+                phong trào và công tác đoàn viên.
+              </p>
+
+            </div>
+
+          </article>
 
 
-    {/* NGƯỜI 3 */}
-    <article className="bch-person">
-      <div className="bch-photo">
-        <Image
-          src="/bch-3.jpg"
-          alt="Ủy viên BCH Chi đoàn D-K66"
-          fill
-          sizes="(max-width: 800px) 100vw, 33vw"
-        />
-      </div>
+          {/* NGƯỜI 3 */}
+          <article className="bch-person">
 
-      <div className="bch-info">
-        <span className="bch-role">ỦY VIÊN BCH</span>
-        <h3>Đỗ Ngọc Châu</h3>
-        <p>
-          Tham gia xây dựng phong trào,
-          hỗ trợ công tác và hoạt động của Chi đoàn.
-        </p>
-      </div>
-    </article>
+            <div className="bch-photo">
 
-  </div>
+              <Image
+                src="/bch-3.jpg"
+                alt="Ủy viên BCH Chi đoàn D-K66"
+                fill
+                sizes="(max-width: 800px) 100vw, 33vw"
+              />
 
-</section>
+            </div>
+
+            <div className="bch-info">
+
+              <span className="bch-role">
+                ỦY VIÊN BCH
+              </span>
+
+              <h3>
+                Đỗ Ngọc Châu
+              </h3>
+
+              <p>
+                Tham gia xây dựng phong trào,
+                hỗ trợ công tác và hoạt động của Chi đoàn.
+              </p>
+
+            </div>
+
+          </article>
+
+        </div>
+
+      </section>
 
 
       {/* ================= HOẠT ĐỘNG ================= */}
-      <section id="hoat-dong" className="section activity-section">
+      <section
+        id="hoat-dong"
+        className="section activity-section"
+      >
 
         <div className="section-heading">
-          <span className="section-number">03</span>
+
+          <span className="section-number">
+            03
+          </span>
 
           <div>
-            <span className="eyebrow">TIN TỨC & SỰ KIỆN</span>
-            <h2>Hoạt động Chi đoàn</h2>
+            <span className="eyebrow">
+              TIN TỨC & SỰ KIỆN
+            </span>
+
+            <h2>
+              Hoạt động Chi đoàn
+            </h2>
           </div>
+
         </div>
+
 
         <div className="activity-grid">
 
+          {/* ================= HOẠT ĐỘNG NỔI BẬT ================= */}
           <article className="activity-card featured">
+
             <div className="activity-image">
+
               <Image
                 src="/anh-lop.jpg"
                 alt="Tập thể lớp D-K66"
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
               />
+
             </div>
 
             <div className="activity-content">
-              <span>HOẠT ĐỘNG</span>
+
+              <span>
+                HOẠT ĐỘNG
+              </span>
+
               <h3>
-                Những khoảnh khắc đáng nhớ của tập thể D-K66
+                Những khoảnh khắc đáng nhớ
+                của tập thể D-K66
               </h3>
+
               <p>
-                Nơi lưu giữ những hình ảnh và hoạt động đáng nhớ của Chi đoàn.
+                Nơi lưu giữ những hình ảnh và hoạt động
+                đáng nhớ của Chi đoàn.
               </p>
+
             </div>
+
           </article>
 
 
+          {/* ================= DANH SÁCH THÔNG BÁO ================= */}
           <div className="activity-side">
 
-           <article className="mini-card">
-  <span className="mini-number">01</span>
+            {/* THÔNG BÁO 01 */}
+            <article className="mini-card">
 
-  <div>
-    <span>THÔNG BÁO</span>
+              <span className="mini-number">
+                01
+              </span>
 
-    <h3>
-      {announcements.length > 0
-        ? announcements[0].title
-        : "Chưa có thông báo"}
-    </h3>
+              <div>
 
-    <p>
-      {announcements.length > 0
-        ? announcements[0].content.substring(0, 100) + "..."
-        : "Hiện chưa có thông báo nào."}
-    </p>
+                <span>
+                  THÔNG BÁO
+                </span>
 
-    {announcements.length > 0 && (
-      <small
-        style={{
-          display: "block",
-          marginTop: "10px",
-          color: "#6b7280",
-        }}
-      >
-        {announcements[0].author} •{" "}
-        {new Date(
-          announcements[0].created_at
-        ).toLocaleDateString("vi-VN")}
-      </small>
-    )}
-  </div>
-</article>
+                {announcements.length > 0 ? (
+                  <>
 
-            <div className="activity-side">
+                    <Link
+                      href={`/announcement/${announcements[0].id}`}
+                    >
+                      <h3 className="hover:text-blue-600 cursor-pointer transition">
+                        {announcements[0].title}
+                      </h3>
+                    </Link>
 
-  {/* Thông báo mới nhất */}
-  <article className="mini-card">
-    <span className="mini-number">01</span>
+                    <p>
+                      {announcements[0].content.substring(0, 100)}
+                      {announcements[0].content.length > 100
+                        ? "..."
+                        : ""}
+                    </p>
 
-    <div>
-      <span>THÔNG BÁO</span>
+                    <small
+                      style={{
+                        display: "block",
+                        marginTop: "12px",
+                        color: "#64748b",
+                      }}
+                    >
+                      {announcements[0].author} •{" "}
+                      {new Date(
+                        announcements[0].created_at
+                      ).toLocaleDateString("vi-VN")}
+                    </small>
 
-      {announcements.length > 0 ? (
-        <>
-          <Link href={`/announcement/${announcements[0].id}`}>
-            <h3 className="hover:text-blue-600 cursor-pointer transition">
-              {announcements[0].title}
-            </h3>
-          </Link>
+                    <Link
+                      href={`/announcement/${announcements[0].id}`}
+                      className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
+                    >
+                      Xem chi tiết →
+                    </Link>
 
-          <p>
-            {announcements[0].content.substring(0, 100)}
-            {announcements[0].content.length > 100 ? "..." : ""}
-          </p>
+                  </>
+                ) : (
+                  <>
 
-          <small
-            style={{
-              display: "block",
-              marginTop: "12px",
-              color: "#64748b",
-            }}
-          >
-            {announcements[0].author} •{" "}
-            {new Date(
-              announcements[0].created_at
-            ).toLocaleDateString("vi-VN")}
-          </small>
+                    <h3>
+                      Chưa có thông báo
+                    </h3>
 
-          <Link
-            href={`/announcement/${announcements[0].id}`}
-            className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
-          >
-            Xem chi tiết →
-          </Link>
-        </>
-      ) : (
-        <>
-          <h3>Chưa có thông báo</h3>
-          <p>Hiện chưa có thông báo nào.</p>
-        </>
-      )}
-    </div>
-  </article>
+                    <p>
+                      Hiện chưa có thông báo nào.
+                    </p>
 
-  {/* Thông báo thứ hai */}
-  <article className="mini-card">
-    <span className="mini-number">02</span>
+                  </>
+                )}
 
-    <div>
-      <span>THÔNG BÁO</span>
+              </div>
 
-      {announcements.length > 1 ? (
-        <>
-          <Link href={`/announcement/${announcements[1].id}`}>
-            <h3 className="hover:text-blue-600 cursor-pointer transition">
-              {announcements[1].title}
-            </h3>
-          </Link>
+            </article>
 
-          <p>
-            {announcements[1].content.substring(0, 100)}
-            {announcements[1].content.length > 100 ? "..." : ""}
-          </p>
 
-          <small
-            style={{
-              display: "block",
-              marginTop: "12px",
-              color: "#64748b",
-            }}
-          >
-            {announcements[1].author} •{" "}
-            {new Date(
-              announcements[1].created_at
-            ).toLocaleDateString("vi-VN")}
-          </small>
+            {/* THÔNG BÁO 02 */}
+            <article className="mini-card">
 
-          <Link
-            href={`/announcement/${announcements[1].id}`}
-            className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
-          >
-            Xem chi tiết →
-          </Link>
-        </>
-      ) : (
-        <>
-          <h3>Chưa có thông báo</h3>
-          <p></p>
-        </>
-      )}
-    </div>
-  </article>
+              <span className="mini-number">
+                02
+              </span>
 
-</div>
+              <div>
+
+                <span>
+                  THÔNG BÁO
+                </span>
+
+                {announcements.length > 1 ? (
+                  <>
+
+                    <Link
+                      href={`/announcement/${announcements[1].id}`}
+                    >
+                      <h3 className="hover:text-blue-600 cursor-pointer transition">
+                        {announcements[1].title}
+                      </h3>
+                    </Link>
+
+                    <p>
+                      {announcements[1].content.substring(0, 100)}
+                      {announcements[1].content.length > 100
+                        ? "..."
+                        : ""}
+                    </p>
+
+                    <small
+                      style={{
+                        display: "block",
+                        marginTop: "12px",
+                        color: "#64748b",
+                      }}
+                    >
+                      {announcements[1].author} •{" "}
+                      {new Date(
+                        announcements[1].created_at
+                      ).toLocaleDateString("vi-VN")}
+                    </small>
+
+                    <Link
+                      href={`/announcement/${announcements[1].id}`}
+                      className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
+                    >
+                      Xem chi tiết →
+                    </Link>
+
+                  </>
+                ) : (
+                  <>
+
+                    <h3>
+                      Chưa có thông báo thứ hai
+                    </h3>
+
+                    <p>
+                      Hiện chưa có thông báo thứ hai.
+                    </p>
+
+                  </>
+                )}
+
+              </div>
+
+            </article>
 
           </div>
 
         </div>
+
       </section>
 
 
       {/* ================= TÀI LIỆU ================= */}
-      <section id="tai-lieu" className="section documents-section">
+      <section
+        id="tai-lieu"
+        className="section documents-section"
+      >
 
         <div className="section-heading">
-          <span className="section-number">04</span>
+
+          <span className="section-number">
+            04
+          </span>
 
           <div>
-            <span className="eyebrow">KHO TRI THỨC</span>
-            <h2>Tài liệu Chi đoàn</h2>
+            <span className="eyebrow">
+              KHO TRI THỨC
+            </span>
+
+            <h2>
+              Tài liệu Chi đoàn
+            </h2>
           </div>
+
         </div>
 
         <div className="document-grid">
 
           <div className="document-card">
-            <div className="document-icon">01</div>
-            <h3>Văn bản Đoàn</h3>
+
+            <div className="document-icon">
+              01
+            </div>
+
+            <h3>
+              Văn bản Đoàn
+            </h3>
+
             <p>
               Văn bản, quy định và hướng dẫn công tác Đoàn.
             </p>
+
           </div>
 
+
           <div className="document-card">
-            <div className="document-icon">02</div>
-            <h3>Kế hoạch</h3>
+
+            <div className="document-icon">
+              02
+            </div>
+
+            <h3>
+              Kế hoạch
+            </h3>
+
             <p>
               Kế hoạch hoạt động của Chi đoàn theo từng giai đoạn.
             </p>
+
           </div>
 
+
           <div className="document-card">
-            <div className="document-icon">03</div>
-            <h3>Biên bản</h3>
+
+            <div className="document-icon">
+              03
+            </div>
+
+            <h3>
+              Biên bản
+            </h3>
+
             <p>
               Biên bản họp và các tài liệu nội bộ của Chi đoàn.
             </p>
+
           </div>
 
+
           <div className="document-card">
-            <div className="document-icon">04</div>
-            <h3>Tài liệu khác</h3>
+
+            <div className="document-icon">
+              04
+            </div>
+
+            <h3>
+              Tài liệu khác
+            </h3>
+
             <p>
               Kho lưu trữ các tài liệu phục vụ hoạt động.
             </p>
+
           </div>
 
         </div>
+
       </section>
 
 
       {/* ================= THƯ VIỆN ================= */}
-      <section id="thu-vien" className="section library-section">
+      <section
+        id="thu-vien"
+        className="section library-section"
+      >
 
         <div className="section-heading">
-          <span className="section-number">05</span>
+
+          <span className="section-number">
+            05
+          </span>
 
           <div>
-            <span className="eyebrow">KỶ NIỆM</span>
-            <h2>Thư viện hình ảnh</h2>
+            <span className="eyebrow">
+              KỶ NIỆM
+            </span>
+
+            <h2>
+              Thư viện hình ảnh
+            </h2>
           </div>
+
         </div>
 
         <div className="gallery">
 
           <div className="gallery-main">
+
             <Image
               src="/anh-lop.jpg"
               alt="Tập thể D-K66"
               fill
               sizes="(max-width: 768px) 100vw, 66vw"
             />
+
           </div>
 
           <div className="gallery-placeholder">
-            <span>+</span>
+
+            <span>
+              +
+            </span>
+
             <p>
               Thêm hình ảnh hoạt động
             </p>
+
           </div>
 
         </div>
+
       </section>
 
 
       {/* ================= LIÊN HỆ ================= */}
-<section id="lien-he" className="contact-section">
+      <section
+        id="lien-he"
+        className="contact-section"
+      >
 
-  <div className="contact-container">
+        <div className="contact-container">
 
-    {/* Tiêu đề */}
-    <div className="contact-heading">
+          {/* Tiêu đề */}
+          <div className="contact-heading">
 
-      <span className="small-title">
-        THÔNG TIN LIÊN HỆ
-      </span>
+            <span className="small-title">
+              THÔNG TIN LIÊN HỆ
+            </span>
 
-      <h2>
-        BCH Chi đoàn D-K66
-      </h2>
+            <h2>
+              BCH Chi đoàn D-K66
+            </h2>
 
-      <p>
-        Không gian kết nối và trao đổi chính thức của Ban Chấp hành
-        Chi đoàn D-K66 — Trường THPT Hà Trung.
-      </p>
+            <p>
+              Không gian kết nối và trao đổi chính thức
+              của Ban Chấp hành Chi đoàn D-K66 —
+              Trường THPT Hà Trung.
+            </p>
 
-    </div>
-
-
-    {/* Nội dung */}
-    <div className="contact-grid">
-
-      {/* Thông tin liên hệ */}
-      <div className="contact-card">
-
-        <h3>
-          Thông tin liên hệ
-        </h3>
-
-
-        <div className="contact-item">
-
-          <div className="contact-icon">
-            ✦
           </div>
 
-          <div>
-            <strong>Đơn vị</strong>
 
-            <span>
-              Chi đoàn D-K66
-              <br />
-              Trường THPT Hà Trung
-            </span>
+          {/* Nội dung */}
+          <div className="contact-grid">
+
+            {/* Thông tin liên hệ */}
+            <div className="contact-card">
+
+              <h3>
+                Thông tin liên hệ
+              </h3>
+
+
+              <div className="contact-item">
+
+                <div className="contact-icon">
+                  ✦
+                </div>
+
+                <div>
+
+                  <strong>
+                    Đơn vị
+                  </strong>
+
+                  <span>
+                    Chi đoàn D-K66
+                    <br />
+                    Trường THPT Hà Trung
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="contact-item">
+
+                <div className="contact-icon">
+                  ☎
+                </div>
+
+                <div>
+
+                  <strong>
+                    Điện thoại
+                  </strong>
+
+                  <span>
+                    0967 505 501
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="contact-item">
+
+                <div className="contact-icon">
+                  @
+                </div>
+
+                <div>
+
+                  <strong>
+                    Email
+                  </strong>
+
+                  <span>
+                    contactdbao0112@gmail.com
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="contact-item">
+
+                <div className="contact-icon">
+                  ◇
+                </div>
+
+                <div>
+
+                  <strong>
+                    Địa chỉ
+                  </strong>
+
+                  <span>
+                    THPT Hà Trung
+                    <br />
+                    Hoạt Giang, Thanh Hóa
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            {/* BCH */}
+            <div className="bch-card">
+
+              <h3>
+                Ban Chấp hành
+              </h3>
+
+              <p>
+                Thông tin Ban Chấp hành Chi đoàn D-K66.
+                Nội dung này có thể được cập nhật trực tiếp
+                từ trang quản trị sau này.
+              </p>
+
+
+              <div className="bch-member">
+
+                <div className="bch-avatar">
+                  PBT
+                </div>
+
+                <div>
+
+                  <strong>
+                    Đinh Anh Bảo (Web Developer)
+                  </strong>
+
+                  <span>
+                    Phó Bí thư Chi đoàn
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="bch-member">
+
+                <div className="bch-avatar">
+                  BT
+                </div>
+
+                <div>
+
+                  <strong>
+                    Nguyễn Thị Huyền
+                  </strong>
+
+                  <span>
+                    Bí thư Chi đoàn
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="bch-member">
+
+                <div className="bch-avatar">
+                  UV
+                </div>
+
+                <div>
+
+                  <strong>
+                    Đỗ Ngọc Châu
+                  </strong>
+
+                  <span>
+                    Uỷ Viên
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div className="bch-member">
+
+                <div className="bch-avatar">
+                  ĐV
+                </div>
+
+                <div>
+
+                  <strong>
+                    {total} Đoàn viên
+                  </strong>
+
+                  <span>
+                    Tổng số đoàn viên hiện tại
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div className="contact-footer">
+            CHI ĐOÀN D-K66 · TRƯỜNG THPT HÀ TRUNG · XÃ HOẠT GIANG · TỈNH THANH HÓA ·
+            NHIỆM KỲ 2025 — 2028
           </div>
 
         </div>
 
-
-        <div className="contact-item">
-
-          <div className="contact-icon">
-            ☎
-          </div>
-
-          <div>
-            <strong>Điện thoại</strong>
-
-            <span>
-              0967 505 501
-            </span>
-          </div>
-
-        </div>
-
-
-        <div className="contact-item">
-
-          <div className="contact-icon">
-            @
-          </div>
-
-          <div>
-            <strong>Email</strong>
-
-            <span>
-              contactdbao0112@gmail.com
-            </span>
-          </div>
-
-        </div>
-
-
-        <div className="contact-item">
-
-          <div className="contact-icon">
-            ◇
-          </div>
-
-          <div>
-            <strong>Địa chỉ</strong>
-
-            <span>
-              THPT Hà Trung
-              <br />
-              Hoạt Giang, Thanh Hóa
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* BCH */}
-      <div className="bch-card">
-
-        <h3>
-          Ban Chấp hành
-        </h3>
-
-        <p>
-          Thông tin Ban Chấp hành Chi đoàn D-K66.
-          Nội dung này có thể được cập nhật trực tiếp
-          từ trang quản trị sau này.
-        </p>
-
-
-        <div className="bch-member">
-
-          <div className="bch-avatar">
-            PBT
-          </div>
-
-          <div>
-            <strong>
-              Đinh Anh Bảo (Web Developer)
-            </strong>
-
-            <span>
-              Phó Bí thư Chi đoàn
-            </span>
-          </div>
-
-        </div>
-
-<div className="bch-member">
-
-          <div className="bch-avatar">
-            BT
-          </div>
-
-          <div>
-            <strong>
-              Nguyễn Thị Huyền
-            </strong>
-
-            <span>
-              Bí thư Chi đoàn
-            </span>
-          </div>
-
-        </div>
-
-        <div className="bch-member">
-
-          <div className="bch-avatar">
-            UV
-          </div>
-
-          <div>
-            <strong>
-              Đỗ Ngọc Châu
-            </strong>
-
-            <span>
-              Uỷ Viên
-            </span>
-          </div>
-
-        </div>
-
-
-        <div className="bch-member">
-
-          <div className="bch-avatar">
-            ĐV
-          </div>
-
-          <div>
-           <strong>
-    {total} Đoàn viên
-</strong>
-
-            <span>
-              Tổng số đoàn viên hiện tại
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <div className="contact-footer">
-      CHI ĐOÀN D-K66 · TRƯỜNG THPT HÀ TRUNG · NHIỆM KỲ 2025 — 2028
-    </div>
-
-  </div>
-
-</section>
+      </section>
 
 
       {/* ================= FOOTER ================= */}
@@ -848,14 +1045,22 @@ const female = members.filter(
           />
 
           <div>
-            <strong>CHI ĐOÀN D-K66</strong>
-            <span>TRƯỜNG THPT HÀ TRUNG</span>
+
+            <strong>
+              CHI ĐOÀN D-K66
+            </strong>
+
+            <span>
+              TRƯỜNG THPT HÀ TRUNG
+            </span>
+
           </div>
 
         </div>
 
         <p>
-          © 2025 — 2028 · PBT. Đinh Anh Bảo · BCH Chi đoàn D-K66
+          © 2025 — 2028 · PBT. Đinh Anh Bảo ·
+          BCH Chi đoàn D-K66
         </p>
 
         <a href="#top">
