@@ -9,15 +9,42 @@ type Announcement = {
   id: string;
   title: string;
   content: string;
-  image: string;
   author: string;
   created_at: string;
 };
+type MemberSummary = {
+  id: number;
+  gender: string | null;
+};
+
+const bchMembers = [
+  {
+    role: "BÍ THƯ CHI ĐOÀN",
+    name: "Nguyễn Thị Huyền",
+    image: "/bch-1.jpg",
+    description:
+      "Phụ trách công tác chung của Chi đoàn, tổ chức và điều hành các hoạt động.",
+  },
+  {
+    role: "PHÓ BÍ THƯ CHI ĐOÀN",
+    name: "Đinh Anh Bảo",
+    image: "/bch-2.jpg",
+    description:
+      "Phối hợp quản lý, tổ chức các hoạt động, phong trào và công tác đoàn viên.",
+  },
+  {
+    role: "ỦY VIÊN BCH",
+    name: "Đỗ Ngọc Châu",
+    image: "/bch-3.jpg",
+    description:
+      "Tham gia xây dựng phong trào, hỗ trợ công tác và hoạt động của Chi đoàn.",
+  },
+];
 
 export default function Home() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<MemberSummary[]>([]);
 
   useEffect(() => {
     loadMembers();
@@ -26,8 +53,8 @@ export default function Home() {
 
   async function loadMembers() {
     const { data, error } = await supabase
-      .from("members")
-      .select("*");
+       .from("members")
+       .select("id, gender");
 
     if (error) {
       console.log(error);
@@ -40,7 +67,7 @@ export default function Home() {
   async function loadAnnouncements() {
     const { data, error } = await supabase
       .from("announcements")
-      .select("*")
+      .select("id, title, content, author, created_at")
       .order("created_at", { ascending: false })
       .limit(3);
 
@@ -63,7 +90,7 @@ export default function Home() {
   ).length;
 
   return (
-    <main className="site">
+    <main id="top" className="site">
 
       {/* ================= HEADER ================= */}
       <header className="header">
@@ -319,109 +346,32 @@ export default function Home() {
         </div>
 
         <div className="bch-grid">
+  {bchMembers.map((member) => (
+    <article
+      className="bch-person"
+      key={member.name}
+    >
+      <div className="bch-photo">
+        <Image
+          src={member.image}
+          alt={`${member.role} - ${member.name}`}
+          fill
+          sizes="(max-width: 800px) 100vw, 33vw"
+        />
+      </div>
 
-          {/* NGƯỜI 1 */}
-          <article className="bch-person">
+      <div className="bch-info">
+        <span className="bch-role">
+          {member.role}
+        </span>
 
-            <div className="bch-photo">
+        <h3>{member.name}</h3>
 
-              <Image
-                src="/bch-1.jpg"
-                alt="Bí thư Chi đoàn D-K66"
-                fill
-                sizes="(max-width: 800px) 100vw, 33vw"
-              />
-
-            </div>
-
-            <div className="bch-info">
-
-              <span className="bch-role">
-                BÍ THƯ CHI ĐOÀN
-              </span>
-
-              <h3>
-                Nguyễn Thị Huyền
-              </h3>
-
-              <p>
-                Phụ trách công tác chung của Chi đoàn,
-                tổ chức và điều hành các hoạt động.
-              </p>
-
-            </div>
-
-          </article>
-
-
-          {/* NGƯỜI 2 */}
-          <article className="bch-person">
-
-            <div className="bch-photo">
-
-              <Image
-                src="/bch-2.jpg"
-                alt="Phó Bí thư Chi đoàn D-K66"
-                fill
-                sizes="(max-width: 800px) 100vw, 33vw"
-              />
-
-            </div>
-
-            <div className="bch-info">
-
-              <span className="bch-role">
-                PHÓ BÍ THƯ CHI ĐOÀN
-              </span>
-
-              <h3>
-                Đinh Anh Bảo
-              </h3>
-
-              <p>
-                Phối hợp tổ chức các hoạt động,
-                phong trào và công tác đoàn viên.
-              </p>
-
-            </div>
-
-          </article>
-
-
-          {/* NGƯỜI 3 */}
-          <article className="bch-person">
-
-            <div className="bch-photo">
-
-              <Image
-                src="/bch-3.jpg"
-                alt="Ủy viên BCH Chi đoàn D-K66"
-                fill
-                sizes="(max-width: 800px) 100vw, 33vw"
-              />
-
-            </div>
-
-            <div className="bch-info">
-
-              <span className="bch-role">
-                ỦY VIÊN BCH
-              </span>
-
-              <h3>
-                Đỗ Ngọc Châu
-              </h3>
-
-              <p>
-                Tham gia xây dựng phong trào,
-                hỗ trợ công tác và hoạt động của Chi đoàn.
-              </p>
-
-            </div>
-
-          </article>
-
-        </div>
+        <p>{member.description}</p>
+      </div>
+    </article>
+  ))}
+</div>
 
       </section>
 
@@ -490,149 +440,76 @@ export default function Home() {
 
           {/* ================= DANH SÁCH THÔNG BÁO ================= */}
           <div className="activity-side">
+  {announcements.length > 0 ? (
+    announcements.map((announcement, index) => (
+      <article
+        className="mini-card"
+        key={announcement.id}
+      >
+        <span className="mini-number">
+          {String(index + 1).padStart(2, "0")}
+        </span>
 
-            {/* THÔNG BÁO 01 */}
-            <article className="mini-card">
+        <div>
+          <span>THÔNG BÁO</span>
 
-              <span className="mini-number">
-                01
-              </span>
+          <Link
+            href={`/announcement/${announcement.id}`}
+          >
+            <h3 className="hover:text-blue-600 cursor-pointer transition">
+              {announcement.title}
+            </h3>
+          </Link>
 
-              <div>
+          <p>
+            {announcement.content.substring(0, 100)}
+            {announcement.content.length > 100
+              ? "..."
+              : ""}
+          </p>
 
-                <span>
-                  THÔNG BÁO
-                </span>
+          <small
+            style={{
+              display: "block",
+              marginTop: "12px",
+              color: "#64748b",
+            }}
+          >
+            {announcement.author} •{" "}
+            {new Date(
+              announcement.created_at
+            ).toLocaleDateString("vi-VN")}
+          </small>
 
-                {announcements.length > 0 ? (
-                  <>
+          <Link
+            href={`/announcement/${announcement.id}`}
+            className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
+          >
+            Xem chi tiết →
+          </Link>
+        </div>
+      </article>
+    ))
+  ) : (
+    <article className="mini-card">
+      <span className="mini-number">
+        01
+      </span>
 
-                    <Link
-                      href={`/announcement/${announcements[0].id}`}
-                    >
-                      <h3 className="hover:text-blue-600 cursor-pointer transition">
-                        {announcements[0].title}
-                      </h3>
-                    </Link>
+      <div>
+        <span>THÔNG BÁO</span>
 
-                    <p>
-                      {announcements[0].content.substring(0, 100)}
-                      {announcements[0].content.length > 100
-                        ? "..."
-                        : ""}
-                    </p>
+        <h3>
+          Chưa có thông báo
+        </h3>
 
-                    <small
-                      style={{
-                        display: "block",
-                        marginTop: "12px",
-                        color: "#64748b",
-                      }}
-                    >
-                      {announcements[0].author} •{" "}
-                      {new Date(
-                        announcements[0].created_at
-                      ).toLocaleDateString("vi-VN")}
-                    </small>
-
-                    <Link
-                      href={`/announcement/${announcements[0].id}`}
-                      className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
-                    >
-                      Xem chi tiết →
-                    </Link>
-
-                  </>
-                ) : (
-                  <>
-
-                    <h3>
-                      Chưa có thông báo
-                    </h3>
-
-                    <p>
-                      Hiện chưa có thông báo nào.
-                    </p>
-
-                  </>
-                )}
-
-              </div>
-
-            </article>
-
-
-            {/* THÔNG BÁO 02 */}
-            <article className="mini-card">
-
-              <span className="mini-number">
-                02
-              </span>
-
-              <div>
-
-                <span>
-                  THÔNG BÁO
-                </span>
-
-                {announcements.length > 1 ? (
-                  <>
-
-                    <Link
-                      href={`/announcement/${announcements[1].id}`}
-                    >
-                      <h3 className="hover:text-blue-600 cursor-pointer transition">
-                        {announcements[1].title}
-                      </h3>
-                    </Link>
-
-                    <p>
-                      {announcements[1].content.substring(0, 100)}
-                      {announcements[1].content.length > 100
-                        ? "..."
-                        : ""}
-                    </p>
-
-                    <small
-                      style={{
-                        display: "block",
-                        marginTop: "12px",
-                        color: "#64748b",
-                      }}
-                    >
-                      {announcements[1].author} •{" "}
-                      {new Date(
-                        announcements[1].created_at
-                      ).toLocaleDateString("vi-VN")}
-                    </small>
-
-                    <Link
-                      href={`/announcement/${announcements[1].id}`}
-                      className="mt-4 inline-block text-blue-600 font-semibold hover:underline"
-                    >
-                      Xem chi tiết →
-                    </Link>
-
-                  </>
-                ) : (
-                  <>
-
-                    <h3>
-                      Chưa có thông báo thứ hai
-                    </h3>
-
-                    <p>
-                      Hiện chưa có thông báo thứ hai.
-                    </p>
-
-                  </>
-                )}
-
-              </div>
-
-            </article>
-
-          </div>
+        <p>
+          Hiện chưa có thông báo nào.
+        </p>
+      </div>
+    </article>
+  )}
+</div>
 
         </div>
 
