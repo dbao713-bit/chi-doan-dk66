@@ -665,74 +665,94 @@ export default function Home() {
 
         <div className="document-grid">
 
-          <div className="document-card">
+  <Link
+    href="/documents?category=van-ban"
+    className="document-card"
+  >
+    <div className="document-icon">
+      01
+    </div>
 
-            <div className="document-icon">
-              01
-            </div>
+    <h3>
+      Văn bản Đoàn
+    </h3>
 
-            <h3>
-              Văn bản Đoàn
-            </h3>
+    <p>
+      Văn bản, quy định và hướng dẫn công tác Đoàn.
+    </p>
 
-            <p>
-              Văn bản, quy định và hướng dẫn công tác Đoàn.
-            </p>
-
-          </div>
-
-
-          <div className="document-card">
-
-            <div className="document-icon">
-              02
-            </div>
-
-            <h3>
-              Kế hoạch
-            </h3>
-
-            <p>
-              Kế hoạch hoạt động của Chi đoàn theo từng giai đoạn.
-            </p>
-
-          </div>
+    <span className="document-card-action">
+      Xem văn bản →
+    </span>
+  </Link>
 
 
-          <div className="document-card">
+  <Link
+    href="/documents?category=ke-hoach"
+    className="document-card"
+  >
+    <div className="document-icon">
+      02
+    </div>
 
-            <div className="document-icon">
-              03
-            </div>
+    <h3>
+      Kế hoạch
+    </h3>
 
-            <h3>
-              Biên bản
-            </h3>
+    <p>
+      Kế hoạch hoạt động của Chi đoàn theo từng giai đoạn.
+    </p>
 
-            <p>
-              Biên bản họp và các tài liệu nội bộ của Chi đoàn.
-            </p>
+    <span className="document-card-action">
+      Xem kế hoạch →
+    </span>
+  </Link>
 
-          </div>
+
+  <Link
+    href="/documents?category=bien-ban"
+    className="document-card"
+  >
+    <div className="document-icon">
+      03
+    </div>
+
+    <h3>
+      Biên bản
+    </h3>
+
+    <p>
+      Biên bản họp và các tài liệu nội bộ của Chi đoàn.
+    </p>
+
+    <span className="document-card-action">
+      Xem biên bản →
+    </span>
+  </Link>
 
 
-          <div className="document-card">
+  <Link
+    href="/documents?category=khac"
+    className="document-card"
+  >
+    <div className="document-icon">
+      04
+    </div>
 
-            <div className="document-icon">
-              04
-            </div>
+    <h3>
+      Tài liệu khác
+    </h3>
 
-            <h3>
-              Tài liệu khác
-            </h3>
+    <p>
+      Kho lưu trữ các tài liệu phục vụ hoạt động.
+    </p>
 
-            <p>
-              Kho lưu trữ các tài liệu phục vụ hoạt động.
-            </p>
+    <span className="document-card-action">
+      Xem tài liệu →
+    </span>
+  </Link>
 
-          </div>
-
-        </div>
+</div>
 
       </section>
 
