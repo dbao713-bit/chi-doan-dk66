@@ -1,42 +1,5 @@
 import Link from "next/link";
-
-const documents = [
-  {
-    file: "thong-bao.docx",
-    title: "Thông báo",
-    description: "Các thông báo chính thức của Chi đoàn D-K66.",
-    category: "Văn bản Đoàn",
-    categoryKey: "van-ban",
-    type: "DOCX",
-  },
-  {
-    file: "announcement-12345.docx",
-    title: "Thông báo hoạt động",
-    description:
-      "Tài liệu thông báo và triển khai hoạt động của Chi đoàn.",
-    category: "Thông báo",
-    categoryKey: "thong-bao",
-    type: "DOCX",
-  },
-  {
-    file: "announcement-31176a56-35ec-4fcc-b211-34de71f23b66.docx",
-    title: "Thông báo Chi đoàn",
-    description:
-      "Văn bản được lưu trữ trong hệ thống tài liệu của Chi đoàn.",
-    category: "Thông báo",
-    categoryKey: "thong-bao",
-    type: "DOCX",
-  },
-  {
-    file: "test-docx.docx",
-    title: "Tài liệu mẫu",
-    description:
-      "Tài liệu kiểm thử hệ thống quản lý và hiển thị văn bản.",
-    category: "Tài liệu khác",
-    categoryKey: "khac",
-    type: "DOCX",
-  },
-];
+import { createClient } from "@supabase/supabase-js";
 
 const categories = [
   {
@@ -65,6 +28,40 @@ const categories = [
   },
 ];
 
+type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  created_at: string;
+};
+
+type DocumentItem = {
+  id: string;
+  file: string;
+  title: string;
+  description: string;
+  category: string;
+  categoryKey: string;
+  type: string;
+  author: string;
+  createdAt: string;
+};
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!url || !publishableKey) {
+    throw new Error(
+      "Thiếu NEXT_PUBLIC_SUPABASE_URL hoặc NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY."
+    );
+  }
+
+  return createClient(url, publishableKey);
+}
+
 type DocumentsPageProps = {
   searchParams: Promise<{
     category?: string;
@@ -77,26 +74,103 @@ export default async function DocumentsPage({
   const params = await searchParams;
 
   const selectedCategory =
-    params.category && categories.some((item) => item.key === params.category)
+    params.category &&
+    categories.some(
+      (item) => item.key === params.category
+    )
       ? params.category
       : "all";
+
+  /**
+   * =========================================================
+   * LOAD ANNOUNCEMENTS
+   * =========================================================
+   *
+   * Mỗi announcement tương ứng với một DOCX:
+   *
+   * announcement-{id}.docx
+   */
+
+  const supabase = getSupabase();
+
+  const {
+    data: announcements,
+    error,
+  } = await supabase
+    .from("announcements")
+    .select(
+      "id, title, content, author, created_at"
+    )
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    console.error(
+      "[DOCUMENTS] Load announcements error:",
+      error
+    );
+  }
+
+  /**
+   * =========================================================
+   * CONVERT ANNOUNCEMENTS -> DOCUMENTS
+   * =========================================================
+   */
+
+  const documents: DocumentItem[] =
+    ((announcements ?? []) as Announcement[]).map(
+      (announcement) => ({
+        id: String(announcement.id),
+
+        file: `announcement-${announcement.id}.docx`,
+
+        title: announcement.title,
+
+        description:
+          announcement.content?.trim() ||
+          "Tài liệu thông báo của Chi đoàn D-K66.",
+
+        category: "Thông báo",
+
+        categoryKey: "thong-bao",
+
+        type: "DOCX",
+        author: announcement.author,
+        createdAt:
+          announcement.created_at,
+      })
+    );
+
+  /**
+   * =========================================================
+   * FILTER
+   * =========================================================
+   */
 
   const filteredDocuments =
     selectedCategory === "all"
       ? documents
       : documents.filter(
-          (document) => document.categoryKey === selectedCategory
+          (document) =>
+            document.categoryKey ===
+            selectedCategory
         );
 
   const selectedLabel =
-    categories.find((item) => item.key === selectedCategory)?.label ??
-    "Tất cả";
+    categories.find(
+      (item) =>
+        item.key === selectedCategory
+    )?.label ?? "Tất cả";
 
   return (
     <main className="documents-page">
       <section className="documents-hero">
         <div className="documents-hero-inner">
-          <Link href="/" className="documents-back">
+          <Link
+            href="/"
+            className="documents-back"
+          >
             ← Về trang chủ
           </Link>
 
@@ -107,8 +181,9 @@ export default async function DocumentsPage({
           <h1>Thư viện tài liệu</h1>
 
           <p>
-            Văn bản, thông báo và các tài liệu được lưu trữ phục vụ
-            hoạt động của Chi đoàn.
+            Văn bản, thông báo và các tài liệu
+            được lưu trữ phục vụ hoạt động của
+            Chi đoàn.
           </p>
         </div>
       </section>
@@ -143,7 +218,8 @@ export default async function DocumentsPage({
                 : `/documents?category=${category.key}`;
 
             const active =
-              selectedCategory === category.key;
+              selectedCategory ===
+              category.key;
 
             return (
               <Link
@@ -152,7 +228,9 @@ export default async function DocumentsPage({
                 className={`documents-filter ${
                   active ? "active" : ""
                 }`}
-                aria-current={active ? "page" : undefined}
+                aria-current={
+                  active ? "page" : undefined
+                }
               >
                 {category.label}
               </Link>
@@ -162,59 +240,101 @@ export default async function DocumentsPage({
 
         {filteredDocuments.length > 0 ? (
           <div className="documents-grid">
-            {filteredDocuments.map((document) => {
-              const fileUrl = `/documents/${encodeURIComponent(
-                document.file
-              )}`;
+            {filteredDocuments.map(
+              (document) => {
+                /**
+                 * =================================================
+                 * ONLYOFFICE DOCUMENT ID
+                 * =================================================
+                 *
+                 * Không dùng:
+                 *
+                 * /documents/file.docx
+                 *
+                 * nữa.
+                 *
+                 * Document sẽ mở thông qua route:
+                 *
+                 * /edit/{documentId}
+                 */
 
-              return (
-                <article
-                  className="document-item"
-                  key={document.file}
-                >
-                  <div className="document-item-top">
-                    <div className="document-file-icon">
-                      DOC
+                const editorUrl =
+                  `/edit/${encodeURIComponent(
+                    `announcement-${document.id}`
+                  )}`;
+
+                return (
+                  <article
+                    className="document-item"
+                    key={document.id}
+                  >
+                    <div className="document-item-top">
+                      <div className="document-file-icon">
+                        DOC
+                      </div>
+
+                      <span className="document-type">
+                        {document.type}
+                      </span>
                     </div>
 
-                    <span className="document-type">
-                      {document.type}
-                    </span>
-                  </div>
+                    <div className="document-item-body">
+                      <span className="document-category">
+                        {document.category}
+                      </span>
 
-                  <div className="document-item-body">
-                    <span className="document-category">
-                      {document.category}
-                    </span>
+                      <h3>
+                        {document.title}
+                      </h3>
 
-                    <h3>{document.title}</h3>
+                      <p>
+                        {document.description.length >
+                        180
+                          ? `${document.description.substring(
+                              0,
+                              180
+                            )}...`
+                          : document.description}
+                      </p>
 
-                    <p>{document.description}</p>
-                  </div>
+                      <small
+                         style={{
+                           display: "block",
+                           marginTop: "12px",
+                           color: "#64748b",
+                          }}
+                       >
+                        {document.author || "Admin"} •{" "}
+                    {new Date(
+                        document.createdAt
+                    ).toLocaleDateString("vi-VN")}
+                    </small>
+                    </div>
 
-                  <div className="document-actions">
-                    <a
-                      href={fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="document-open"
-                    >
-                      Mở tài liệu
-                      <span>↗</span>
-                    </a>
+                    <div className="document-actions">
+                      <Link
+                        href={editorUrl}
+                        className="document-open"
+                      >
+                        Mở tài liệu
+                        <span>↗</span>
+                      </Link>
 
-                    <a
-                      href={fileUrl}
-                      download
-                      className="document-download"
-                      aria-label={`Tải ${document.title}`}
-                    >
-                      ↓
-                    </a>
-                  </div>
-                </article>
-              );
-            })}
+                      <a
+                        href={`/api/onlyoffice/file/${encodeURIComponent(
+                          `announcement-${document.id}`
+                        )}`}
+                        download={document.file}
+                        className="document-download"
+                        aria-label={`Tải ${document.title}`}
+                      >
+                        ↓
+                      </a>
+                    </div>
+                  </article>
+                );
+              }
+            )}
           </div>
         ) : (
           <div className="documents-empty">
@@ -227,8 +347,12 @@ export default async function DocumentsPage({
             </h3>
 
             <p>
-              Hiện chưa có tài liệu trong danh mục{" "}
-              <strong>{selectedLabel}</strong>.
+              Hiện chưa có tài liệu trong danh
+              mục{" "}
+              <strong>
+                {selectedLabel}
+              </strong>
+              .
             </p>
 
             <Link

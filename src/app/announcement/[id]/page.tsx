@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
+import AnnouncementDocument from "@/components/AnnouncementDocument";
 import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,8 +21,6 @@ import {
 
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-
-import Editor from "@/components/Editor";
 
 export default function AnnouncementDetailPage() {
   const params = useParams();
@@ -68,10 +66,10 @@ export default function AnnouncementDetailPage() {
       try {
         const { data, error } =
           await supabase
-            .from("announcements")
-            .select("*")
-            .eq("id", announcementId)
-            .single();
+           .from("announcements")
+           .select("*")
+           .eq("id", announcementId)
+           .maybeSingle();
 
         if (error) {
           throw new Error(error.message);
@@ -393,37 +391,9 @@ export default function AnnouncementDetailPage() {
               ================================================= */}
 
               <div className="p-4">
-
-                <Editor
-                  editable={false}
-                  documentId={documentId}
-                  documentTitle={
-                    `${
-                      announcement.title ||
-                      "Thông báo"
-                    }.docx`
-                  }
-                  height="calc(100vh - 300px)"
-                  width="100%"
-                  onReady={() => {
-                    console.log(
-                      "[ANNOUNCEMENT DETAIL] ONLYOFFICE ready"
-                    );
-                  }}
-                  onDocumentChange={(changed) => {
-                    console.log(
-                      "[ANNOUNCEMENT DETAIL] document changed:",
-                      changed
-                    );
-                  }}
-                  onError={(message) => {
-                    console.error(
-                      "[ANNOUNCEMENT DETAIL] ONLYOFFICE error:",
-                      message
-                    );
-                  }}
+                <AnnouncementDocument
+                  announcementId={announcementId}
                 />
-
               </div>
 
             </section>

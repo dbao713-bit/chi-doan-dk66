@@ -2548,3 +2548,313 @@ button {
     padding: 8px 13px;
   }
 }
+
+/* =========================================================
+   ANNOUNCEMENT DOCX VIEWER
+   Hiển thị DOCX giống các trang giấy Word
+   ========================================================= */
+
+.announcement-document {
+  width: 100%;
+  min-height: 500px;
+
+  background: #e5e7eb;
+
+  padding: 40px 20px 70px;
+
+  overflow-x: auto;
+  overflow-y: visible;
+
+  box-sizing: border-box;
+}
+
+/* Container bên ngoài */
+.docx-container {
+  width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   DOCX-PREVIEW WRAPPER
+   QUAN TRỌNG:
+   Không dùng display:flex ở đây.
+   Để docx-preview tự quản lý layout.
+   ========================================================= */
+
+.docx-wrapper {
+  width: auto !important;
+
+  background: transparent !important;
+
+  padding: 0 !important;
+  margin: 0 auto !important;
+
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   TỪNG TRANG WORD
+   ========================================================= */
+
+.docx-wrapper section.docx {
+  position: relative;
+
+  background: #ffffff !important;
+
+  margin: 0 auto 40px auto !important;
+
+  box-sizing: border-box;
+
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.10),
+    0 12px 35px rgba(0, 0, 0, 0.12);
+
+  flex-shrink: 0;
+}
+
+.docx-wrapper section.docx:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Trang cuối */
+.docx-wrapper section.docx:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* =========================================================
+   KHÔNG ÉP KÍCH THƯỚC NỘI DUNG WORD
+   ========================================================= */
+
+.docx-wrapper section.docx > * {
+  box-sizing: border-box;
+}
+
+.docx-wrapper p {
+  box-sizing: border-box;
+}
+
+/* Bảng */
+.docx-wrapper table {
+  border-collapse: collapse;
+}
+
+/* Hình ảnh */
+.docx-wrapper img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Header / Footer */
+.docx-wrapper header,
+.docx-wrapper footer {
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.announcement-document-loading {
+  min-height: 500px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  color: #6b7280;
+}
+
+.announcement-document-spinner {
+  width: 32px;
+  height: 32px;
+
+  border: 3px solid #d1d5db;
+  border-top-color: #2563eb;
+
+  border-radius: 9999px;
+
+  animation: announcement-document-spin 0.8s linear infinite;
+}
+
+@keyframes announcement-document-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.announcement-document-error {
+  margin: 30px auto;
+
+  max-width: 800px;
+
+  padding: 24px;
+
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+
+  background: #fef2f2;
+
+  color: #b91c1c;
+
+  box-sizing: border-box;
+}
+
+.announcement-document-error h3 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.announcement-document-error p {
+  margin: 8px 0 0;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  word-break: break-word;
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1024px) {
+  .announcement-document {
+    padding: 30px 12px 50px;
+  }
+
+  .docx-wrapper section.docx {
+    margin-bottom: 24px !important;
+  }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .announcement-document {
+    padding: 15px 5px 40px;
+
+    overflow-x: auto;
+  }
+
+  /*
+   * Không ép width section.
+   * Nếu trang Word rộng hơn màn hình,
+   * cho phép cuộn ngang.
+   */
+  .docx-wrapper section.docx {
+    margin-left: auto !important;
+    margin-right: auto !important;
+
+    margin-bottom: 18px !important;
+
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 5px 15px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* =========================================================
+   ĐIỆN THOẠI NHỎ
+   ========================================================= */
+
+@media (max-width: 480px) {
+  .announcement-document {
+    padding: 10px 3px 30px;
+  }
+
+  .docx-wrapper section.docx {
+    margin-bottom: 14px !important;
+  }
+}
+
+/* =========================================================
+   DOCX - TÁCH TRANG WORD / A4
+   ========================================================= */
+
+.announcement-document {
+  width: 100%;
+  background: #e5e7eb;
+  padding: 40px 20px 70px;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.docx-container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+}
+
+/* Mỗi section là một trang Word */
+.docx-wrapper section.docx {
+  background: #fff !important;
+
+  display: block !important;
+
+  margin: 0 auto 40px auto !important;
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.12),
+    0 10px 30px rgba(0, 0, 0, 0.10);
+
+  box-sizing: border-box;
+}
+
+/* Không để trang cuối có khoảng trống */
+.docx-wrapper section.docx:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Nội dung Word */
+.docx-wrapper p {
+  box-sizing: border-box;
+}
+
+.docx-wrapper table {
+  border-collapse: collapse;
+}
+
+.docx-wrapper img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .announcement-document {
+    padding: 15px 5px 50px;
+    overflow-x: auto;
+  }
+
+  .docx-wrapper section.docx {
+    margin-bottom: 25px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .announcement-document {
+    padding: 10px 3px 40px;
+  }
+
+  .docx-wrapper section.docx {
+    margin-bottom: 18px !important;
+  }
+}

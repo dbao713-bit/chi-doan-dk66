@@ -136,18 +136,9 @@ export default function CreateAnnouncementPage() {
        * -------------------------------------------------------
        * 3. TẠO FILE DOCX
        * -------------------------------------------------------
-       *
-       * Gọi:
-       *
-       * POST /api/announcements/create-document
-       *
-       * API này sẽ copy:
-       *
-       * public/documents/test-docx.docx
-       *
-       * thành:
-       *
-       * public/documents/announcement-123.docx
+       /**
+       * announcement-documents/test-docx.docx
+       * announcement-documents/announcement-<id>.docx
        */
 
       console.log(
