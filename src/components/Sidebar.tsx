@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -14,137 +15,183 @@ import {
 
 import { useSidebar } from "@/context/SidebarContext";
 
+const menuItems = [
+  {
+    href: "/dashboard",
+    title: "Tổng quan",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/dashboard/members",
+    title: "Đoàn viên",
+    icon: Users,
+  },
+  {
+    href: "/dashboard/announcements",
+    title: "Thông báo",
+    icon: Bell,
+  },
+];
+
+const extensionItems = [
+  {
+    href: "/dashboard/activities",
+    title: "Sinh hoạt",
+    icon: CalendarDays,
+  },
+  {
+    href: "/dashboard/documents",
+    title: "Tài liệu",
+    icon: FileText,
+  },
+  {
+    href: "/dashboard/library",
+    title: "Thư viện",
+    icon: Image,
+  },
+];
+
 export default function Sidebar() {
   const { collapsed } = useSidebar();
+  const pathname = usePathname();
 
   return (
     <aside
-      className={`min-h-screen bg-[#005BAC] text-white shadow-xl transition-all duration-300 ${
-        collapsed ? "w-20" : "w-72"
+      className={`dashboard-sidebar ${
+        collapsed ? "dashboard-sidebar-collapsed" : ""
       }`}
     >
-      {/* Logo */}
+      {/* BRAND */}
 
-      <div
-        className={`border-b border-blue-400 ${
-          collapsed ? "p-4" : "p-6"
-        }`}
-      >
-        {collapsed ? (
-          <div className="flex justify-center">
-            <div className="rounded-xl bg-white p-3 text-[#005BAC]">
-              <GraduationCap size={26} />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white p-3 text-[#005BAC]">
-              <GraduationCap size={28} />
-            </div>
+      <div className="dashboard-sidebar-brand">
+        <div className="dashboard-sidebar-logo">
+          <GraduationCap size={27} />
+        </div>
 
-            <div>
-              <h1 className="text-xl font-bold">
-                CHI ĐOÀN D-K66
-              </h1>
-
-              <p className="text-sm text-blue-100">
-                Hệ thống quản lý
-              </p>
-            </div>
+        {!collapsed && (
+          <div className="dashboard-sidebar-brand-text">
+            <strong>CHI ĐOÀN D-K66</strong>
+            <span>THPT HÀ TRUNG</span>
           </div>
         )}
       </div>
 
-      {/* Menu */}
+      {/* QUẢN LÝ */}
 
-      <nav
-  className={`mt-6 px-3 ${
-    collapsed ? "space-y-7" : "space-y-2"
-  }`}
->
+      <div className="dashboard-sidebar-section">
+        {!collapsed && (
+          <p className="dashboard-sidebar-label">
+            QUẢN LÝ
+          </p>
+        )}
 
-        <MenuItem
+        <nav className="dashboard-sidebar-nav">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+
+            const active =
+              pathname === item.href ||
+              (
+                item.href !== "/dashboard" &&
+                pathname.startsWith(item.href)
+              );
+
+            return (
+              <SidebarItem
+                key={item.href}
+                href={item.href}
+                title={item.title}
+                icon={<Icon size={20} />}
+                collapsed={collapsed}
+                active={active}
+              />
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* MỞ RỘNG */}
+
+      <div className="dashboard-sidebar-section">
+        {!collapsed && (
+          <p className="dashboard-sidebar-label">
+            MỞ RỘNG
+          </p>
+        )}
+
+        <nav className="dashboard-sidebar-nav">
+          {extensionItems.map((item) => {
+            const Icon = item.icon;
+
+            const active =
+              pathname === item.href ||
+              pathname.startsWith(`${item.href}/`);
+
+            return (
+              <SidebarItem
+                key={item.href}
+                href={item.href}
+                title={item.title}
+                icon={<Icon size={20} />}
+                collapsed={collapsed}
+                active={active}
+              />
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* QUẢN TRỊ */}
+
+      <div className="dashboard-sidebar-bottom">
+        <SidebarItem
+          href="/admin"
+          title="Quản trị"
+          icon={<Settings size={20} />}
           collapsed={collapsed}
-          href="/dashboard"
-          icon={<LayoutDashboard size={22} />}
-          title="Dashboard"
+          active={
+            pathname === "/admin" ||
+            pathname.startsWith("/admin/")
+          }
         />
-
-        <MenuItem
-          collapsed={collapsed}
-          href="/dashboard/members"
-          icon={<Users size={22} />}
-          title="Đoàn viên"
-        />
-
-        <MenuItem
-  collapsed={collapsed}
-  href="/dashboard/announcements"
-  icon={<Bell size={22} />}
-  title="Thông báo"
-/>
-
-        <MenuItem
-          collapsed={collapsed}
-          href="#"
-          icon={<CalendarDays size={22} />}
-          title="Sinh hoạt"
-        />
-
-        <MenuItem
-          collapsed={collapsed}
-          href="#"
-          icon={<FileText size={22} />}
-          title="Tài liệu"
-        />
-
-        <MenuItem
-          collapsed={collapsed}
-          href="#"
-          icon={<Image size={22} />}
-          title="Thư viện"
-        />
-
-        <MenuItem
-          collapsed={collapsed}
-          href="#"
-          icon={<Settings size={22} />}
-          title="Cài đặt"
-        />
-
-      </nav>
+      </div>
     </aside>
   );
 }
 
-function MenuItem({
+function SidebarItem({
   href,
-  icon,
   title,
+  icon,
   collapsed,
+  active,
 }: {
   href: string;
-  icon: React.ReactNode;
   title: string;
+  icon: React.ReactNode;
   collapsed: boolean;
+  active: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`
-        flex items-center rounded-xl transition-all duration-300 hover:bg-blue-700
-
-        ${
-          collapsed
-            ? "justify-center h-14 my-3"
-            : "gap-3 px-4 py-3"
-        }
-      `}
+      className={`dashboard-sidebar-item ${
+        active
+          ? "dashboard-sidebar-item-active"
+          : ""
+      } ${
+        collapsed
+          ? "dashboard-sidebar-item-collapsed"
+          : ""
+      }`}
+      title={collapsed ? title : undefined}
     >
-      {icon}
+      <span className="dashboard-sidebar-item-icon">
+        {icon}
+      </span>
 
       {!collapsed && (
-        <span className="font-medium">
+        <span className="dashboard-sidebar-item-title">
           {title}
         </span>
       )}

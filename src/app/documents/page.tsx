@@ -28,30 +28,33 @@ const categories = [
   },
 ];
 
-type Announcement = {
-  id: string;
-  title: string;
-  content: string;
-  author: string;
-  created_at: string;
-};
+type Category =
+  | "van-ban"
+  | "thong-bao"
+  | "ke-hoach"
+  | "bien-ban"
+  | "khac";
 
 type DocumentItem = {
   id: string;
-  file: string;
   title: string;
-  description: string;
-  category: string;
-  categoryKey: string;
-  type: string;
-  author: string;
-  createdAt: string;
+  description: string | null;
+  category: Category;
+  file_path: string;
+  file_name: string;
+  mime_type: string | null;
+  file_size: number | null;
+  author: string | null;
+  created_at: string;
 };
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
   const publishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env
+      .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !publishableKey) {
     throw new Error(
@@ -59,7 +62,10 @@ function getSupabase() {
     );
   }
 
-  return createClient(url, publishableKey);
+  return createClient(
+    url,
+    publishableKey
+  );
 }
 
 type DocumentsPageProps = {
@@ -76,30 +82,40 @@ export default async function DocumentsPage({
   const selectedCategory =
     params.category &&
     categories.some(
-      (item) => item.key === params.category
+      (item) =>
+        item.key === params.category
     )
       ? params.category
       : "all";
 
-  /**
-   * =========================================================
-   * LOAD ANNOUNCEMENTS
-   * =========================================================
-   *
-   * Mỗi announcement tương ứng với một DOCX:
-   *
-   * announcement-{id}.docx
-   */
-
   const supabase = getSupabase();
 
+  /*
+   * =========================================================
+   * LOAD DOCUMENTS
+   * =========================================================
+   *
+   * Dùng chung bảng documents với dashboard.
+   */
+
   const {
-    data: announcements,
+    data,
     error,
   } = await supabase
-    .from("announcements")
+    .from("documents")
     .select(
-      "id, title, content, author, created_at"
+      `
+        id,
+        title,
+        description,
+        category,
+        file_path,
+        file_name,
+        mime_type,
+        file_size,
+        author,
+        created_at
+      `
     )
     .order("created_at", {
       ascending: false,
@@ -107,42 +123,15 @@ export default async function DocumentsPage({
 
   if (error) {
     console.error(
-      "[DOCUMENTS] Load announcements error:",
+      "[DOCUMENTS] Load documents error:",
       error
     );
   }
 
-  /**
-   * =========================================================
-   * CONVERT ANNOUNCEMENTS -> DOCUMENTS
-   * =========================================================
-   */
+  const documents =
+    (data ?? []) as DocumentItem[];
 
-  const documents: DocumentItem[] =
-    ((announcements ?? []) as Announcement[]).map(
-      (announcement) => ({
-        id: String(announcement.id),
-
-        file: `announcement-${announcement.id}.docx`,
-
-        title: announcement.title,
-
-        description:
-          announcement.content?.trim() ||
-          "Tài liệu thông báo của Chi đoàn D-K66.",
-
-        category: "Thông báo",
-
-        categoryKey: "thong-bao",
-
-        type: "DOCX",
-        author: announcement.author,
-        createdAt:
-          announcement.created_at,
-      })
-    );
-
-  /**
+  /*
    * =========================================================
    * FILTER
    * =========================================================
@@ -153,7 +142,7 @@ export default async function DocumentsPage({
       ? documents
       : documents.filter(
           (document) =>
-            document.categoryKey ===
+            document.category ===
             selectedCategory
         );
 
@@ -163,10 +152,67 @@ export default async function DocumentsPage({
         item.key === selectedCategory
     )?.label ?? "Tất cả";
 
+  /*
+   * =========================================================
+   * FILE URL
+   * =========================================================
+   */
+
+  function getFileUrl(
+    filePath: string
+  ) {
+    if (!filePath) return "#";
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage
+      .from("documents")
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  }
+
+  function getFileType(
+    fileName: string
+  ) {
+    return (
+      fileName
+        .split(".")
+        .pop()
+        ?.toUpperCase() || "FILE"
+    );
+  }
+
+  function formatSize(
+    bytes: number | null
+  ) {
+    if (!bytes) return "";
+
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+      return `${(
+        bytes / 1024
+      ).toFixed(1)} KB`;
+    }
+
+    return `${(
+      bytes /
+      (1024 * 1024)
+    ).toFixed(1)} MB`;
+  }
+
   return (
     <main className="documents-page">
+
+      {/* HERO */}
+
       <section className="documents-hero">
+
         <div className="documents-hero-inner">
+
           <Link
             href="/"
             className="documents-back"
@@ -178,19 +224,29 @@ export default async function DocumentsPage({
             CHI ĐOÀN D-K66
           </span>
 
-          <h1>Thư viện tài liệu</h1>
+          <h1>
+            Thư viện tài liệu
+          </h1>
 
           <p>
             Văn bản, thông báo và các tài liệu
             được lưu trữ phục vụ hoạt động của
             Chi đoàn.
           </p>
+
         </div>
+
       </section>
 
+
+      {/* CONTENT */}
+
       <section className="documents-container">
+
         <div className="documents-header">
+
           <div>
+
             <span className="documents-label">
               DOCUMENT ARCHIVE
             </span>
@@ -200,87 +256,109 @@ export default async function DocumentsPage({
                 ? "Tài liệu của Chi đoàn"
                 : selectedLabel}
             </h2>
+
           </div>
 
           <span className="documents-count">
             {filteredDocuments.length} tài liệu
           </span>
+
         </div>
+
+
+        {/* FILTER */}
 
         <nav
           className="documents-filters"
           aria-label="Lọc tài liệu"
         >
-          {categories.map((category) => {
-            const href =
-              category.key === "all"
-                ? "/documents"
-                : `/documents?category=${category.key}`;
 
-            const active =
-              selectedCategory ===
-              category.key;
+          {categories.map(
+            (category) => {
 
-            return (
-              <Link
-                key={category.key}
-                href={href}
-                className={`documents-filter ${
-                  active ? "active" : ""
-                }`}
-                aria-current={
-                  active ? "page" : undefined
-                }
-              >
-                {category.label}
-              </Link>
-            );
-          })}
+              const href =
+                category.key === "all"
+                  ? "/documents"
+                  : `/documents?category=${category.key}`;
+
+              const active =
+                selectedCategory ===
+                category.key;
+
+              return (
+                <Link
+                  key={category.key}
+                  href={href}
+                  className={`documents-filter ${
+                    active
+                      ? "active"
+                      : ""
+                  }`}
+                  aria-current={
+                    active
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  {category.label}
+                </Link>
+              );
+            }
+          )}
+
         </nav>
 
-        {filteredDocuments.length > 0 ? (
+
+        {/* DOCUMENT LIST */}
+
+        {filteredDocuments.length >
+        0 ? (
+
           <div className="documents-grid">
+
             {filteredDocuments.map(
               (document) => {
-                /**
-                 * =================================================
-                 * ONLYOFFICE DOCUMENT ID
-                 * =================================================
-                 *
-                 * Không dùng:
-                 *
-                 * /documents/file.docx
-                 *
-                 * nữa.
-                 *
-                 * Document sẽ mở thông qua route:
-                 *
-                 * /edit/{documentId}
-                 */
 
-                const editorUrl =
-                  `/edit/${encodeURIComponent(
-                    `announcement-${document.id}`
-                  )}`;
+                const fileUrl =
+                  getFileUrl(
+                    document.file_path
+                  );
+
+                const fileType =
+                  getFileType(
+                    document.file_name
+                  );
 
                 return (
                   <article
                     className="document-item"
                     key={document.id}
                   >
+
                     <div className="document-item-top">
+
                       <div className="document-file-icon">
-                        DOC
+                        {fileType}
                       </div>
 
                       <span className="document-type">
-                        {document.type}
+                        {fileType}
                       </span>
+
                     </div>
 
+
                     <div className="document-item-body">
+
                       <span className="document-category">
-                        {document.category}
+                        {
+                          categories.find(
+                            (item) =>
+                              item.key ===
+                              document.category
+                          )?.label ??
+                          "Tài liệu khác"
+                        }
                       </span>
 
                       <h3>
@@ -288,56 +366,89 @@ export default async function DocumentsPage({
                       </h3>
 
                       <p>
-                        {document.description.length >
-                        180
-                          ? `${document.description.substring(
+                        {(
+                          document.description ??
+                          "Chưa có mô tả tài liệu."
+                        ).length > 180
+                          ? `${(
+                              document.description ??
+                              ""
+                            ).substring(
                               0,
                               180
                             )}...`
-                          : document.description}
+                          : document.description ??
+                            "Chưa có mô tả tài liệu."}
                       </p>
 
+
                       <small
-                         style={{
-                           display: "block",
-                           marginTop: "12px",
-                           color: "#64748b",
-                          }}
-                       >
-                        {document.author || "Admin"} •{" "}
-                    {new Date(
-                        document.createdAt
-                    ).toLocaleDateString("vi-VN")}
-                    </small>
+                        style={{
+                          display:
+                            "block",
+                          marginTop:
+                            "12px",
+                          color:
+                            "#64748b",
+                        }}
+                      >
+                        {document.author ||
+                          "Admin"}
+
+                        {" • "}
+
+                        {new Date(
+                          document.created_at
+                        ).toLocaleDateString(
+                          "vi-VN"
+                        )}
+
+                        {document.file_size
+                          ? ` • ${formatSize(
+                              document.file_size
+                            )}`
+                          : ""}
+                      </small>
+
                     </div>
 
+
                     <div className="document-actions">
-                      <Link
-                        href={editorUrl}
+
+                      <a
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="document-open"
                       >
                         Mở tài liệu
                         <span>↗</span>
-                      </Link>
+                      </a>
 
                       <a
-                        href={`/api/onlyoffice/file/${encodeURIComponent(
-                          `announcement-${document.id}`
-                        )}`}
-                        download={document.file}
+                        href={fileUrl}
+                        download={
+                          document.file_name
+                        }
                         className="document-download"
                         aria-label={`Tải ${document.title}`}
                       >
                         ↓
                       </a>
+
                     </div>
+
                   </article>
                 );
               }
             )}
+
           </div>
+
         ) : (
+
           <div className="documents-empty">
+
             <div className="documents-empty-icon">
               —
             </div>
@@ -361,9 +472,13 @@ export default async function DocumentsPage({
             >
               Xem tất cả tài liệu →
             </Link>
+
           </div>
+
         )}
+
       </section>
+
     </main>
   );
 }

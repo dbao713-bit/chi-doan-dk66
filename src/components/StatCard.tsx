@@ -3,55 +3,86 @@ import React from "react";
 type Props = {
   title: string;
   value: number;
-  color: string;
+  color?: string;
   icon: React.ReactNode;
 };
 
 export default function StatCard({
   title,
   value,
-  color,
+  color = "blue",
   icon,
 }: Props) {
+  const themes: Record<
+    string,
+    {
+      icon: string;
+      number: string;
+      glow: string;
+    }
+  > = {
+    blue: {
+      icon: "stat-icon-blue",
+      number: "stat-number-blue",
+      glow: "stat-glow-blue",
+    },
+    green: {
+      icon: "stat-icon-green",
+      number: "stat-number-green",
+      glow: "stat-glow-green",
+    },
+    pink: {
+      icon: "stat-icon-pink",
+      number: "stat-number-pink",
+      glow: "stat-glow-pink",
+    },
+    emerald: {
+      icon: "stat-icon-emerald",
+      number: "stat-number-emerald",
+      glow: "stat-glow-emerald",
+    },
+    sky: {
+      icon: "stat-icon-sky",
+      number: "stat-number-sky",
+      glow: "stat-glow-sky",
+    },
+    amber: {
+      icon: "stat-icon-amber",
+      number: "stat-number-amber",
+      glow: "stat-glow-amber",
+    },
+    red: {
+      icon: "stat-icon-red",
+      number: "stat-number-red",
+      glow: "stat-glow-red",
+    },
+  };
+
+  const theme = themes[color] ?? themes.blue;
+
   return (
-    <div className="overflow-hidden rounded-3xl bg-white shadow-xl transition hover:-translate-y-1 hover:shadow-2xl">
-
-      <div className="flex h-32">
-
-        {/* Nội dung */}
-
-        <div className="flex flex-1 flex-col justify-center px-6">
-
-          <p className="text-xl font-bold text-gray-700">
+    <div className={`members-stat-card ${theme.glow}`}>
+      <div className="members-stat-content">
+        <div className="members-stat-top">
+          <span className="members-stat-title">
             {title}
-          </p>
+          </span>
 
-          <div className="mt-3 flex items-end gap-2">
-
-            <span className="text-5xl font-bold text-blue-600">
-              {value}
-            </span>
-
-            <span className="mb-1 text-gray-500">
-              người
-            </span>
-
-          </div>
-
-        </div>
-
-        {/* Icon */}
-
-        <div
-          className={`flex w-28 items-center justify-center ${color}`}
-        >
-          <div className="text-white">
+          <div className={`members-stat-icon ${theme.icon}`}>
             {icon}
           </div>
         </div>
 
-      </div>
+        <div className="members-stat-bottom">
+          <span className={`members-stat-number ${theme.number}`}>
+            {value}
+          </span>
 
+          <span className="members-stat-unit">
+            người
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

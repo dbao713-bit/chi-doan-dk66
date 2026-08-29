@@ -1,35 +1,24 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
 import { toast } from "sonner";
 import exportMembersToPDF from "@/lib/exportPdf";
 import { exportMembersToExcel } from "@/lib/exportExcel";
+
 import GenderChart from "@/components/GenderChart";
+import RatingChart from "@/components/RatingChart";
+import StatCard from "@/components/StatCard";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import RatingChart from "@/components/RatingChart";
+
 import {
   Users,
   User,
   UserRoundCheck,
-  Eye,
   Pencil,
   Trash2,
 } from "lucide-react";
 
-
-import StatCard from "@/components/StatCard";
 import { supabase } from "@/lib/supabase";
 
 type Member = {
@@ -53,377 +42,858 @@ export default function MembersPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteName, setDeleteName] = useState("");
 
+  // =========================================================
+  // LOAD MEMBERS
+  // =========================================================
+
   useEffect(() => {
-  async function loadMembers() {
-    console.time("LOAD MEMBERS");
+    async function loadMembers() {
+      console.time("LOAD MEMBERS");
 
-    const { data, error } = await supabase
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .order("id");
+
+      console.timeEnd("LOAD MEMBERS");
+
+      if (error) {
+        console.log(error);
+
+        toast.error("Không thể tải danh sách đoàn viên", {
+          description: error.message,
+        });
+
+        return;
+      }
+
+      console.table(data);
+
+      setMembers(data ?? []);
+    }
+
+    loadMembers();
+  }, []);
+
+  // =========================================================
+  // DELETE MEMBER
+  // =========================================================
+
+  async function deleteMember(id: number) {
+    const { error } = await supabase
       .from("members")
-      .select("*")
-      .order("id");
-
-    console.timeEnd("LOAD MEMBERS");
+      .delete()
+      .eq("id", id);
 
     if (error) {
-      console.log(error);
+      toast.error("Xóa thất bại!", {
+        description: error.message,
+      });
+
       return;
     }
 
-    console.table(data);
-    setMembers(data ?? []);
-  }
+    setMembers((old) =>
+      old.filter((member) => member.id !== id)
+    );
 
-  loadMembers();
-}, []);
-
- async function deleteMember(id: number) {
-  const { error } = await supabase
-    .from("members")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    toast.error("Xóa thất bại!", {
-      description: error.message,
+    toast.success("Đã xóa đoàn viên!", {
+      description:
+        "Đoàn viên đã được xóa khỏi danh sách.",
     });
-    return;
+
+    setDeleteId(null);
+    setDeleteName("");
   }
 
-  setMembers((old) => old.filter((m) => m.id !== id));
+  // =========================================================
+  // SEARCH
+  // =========================================================
 
-  toast.success("Đã xóa đoàn viên!", {
-    description: "Đoàn viên đã được xóa khỏi danh sách.",
+  const filteredMembers = members.filter((member) => {
+    const keyword = search.toLowerCase().trim();
+
+    return (
+      member.full_name
+        .toLowerCase()
+        .includes(keyword) ||
+      member.student_id
+        .toLowerCase()
+        .includes(keyword)
+    );
   });
-  setDeleteId(null);
-}
 
-  const filteredMembers = members.filter(
-    (member) =>
-      member.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      member.student_id.includes(search)
-  );
+  // =========================================================
+  // STATISTICS
+  // =========================================================
 
   const maleCount = members.filter(
-  (m) => m.gender === "Nam"
-).length;
+    (member) => member.gender === "Nam"
+  ).length;
 
-const femaleCount = members.filter(
-  (m) => m.gender === "Nữ"
-).length;
+  const femaleCount = members.filter(
+    (member) => member.gender === "Nữ"
+  ).length;
 
-const excellentCount = members.filter(
-  (m) => m.rating === "Xuất sắc"
-).length;
+  const excellentCount = members.filter(
+    (member) => member.rating === "Xuất sắc"
+  ).length;
 
-const goodCount = members.filter(
-  (m) => m.rating === "Khá"
-).length;
+  const goodCount = members.filter(
+    (member) => member.rating === "Khá"
+  ).length;
 
-const averageCount = members.filter(
-  (m) => m.rating === "Trung bình"
-).length;
+  const averageCount = members.filter(
+    (member) => member.rating === "Trung bình"
+  ).length;
 
-const weakCount = members.filter(
-  (m) => m.rating === "Yếu"
-).length;
+  const weakCount = members.filter(
+    (member) => member.rating === "Yếu"
+  ).length;
+
+  const ratedCount =
+    excellentCount +
+    goodCount +
+    averageCount +
+    weakCount;
+
+  // =========================================================
+  // PAGE
+  // =========================================================
 
   return (
-    <section className="p-12 space-y-12">
-        {/* Tiêu đề */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold">
-              Danh sách đoàn viên
-            </h1>
+    <section className="members-page">
 
-            <p className="mt-2 text-gray-500">
-              Quản lý đoàn viên Chi đoàn D-K66
-            </p>
+      {/* =====================================================
+          TIÊU ĐỀ
+          ===================================================== */}
+
+      <div className="members-page-header">
+
+        <div className="members-page-heading">
+
+          <div className="members-page-kicker">
+            QUẢN LÝ CHI ĐOÀN
           </div>
 
-          <div className="flex gap-3">
+          <h1>
+            Danh sách đoàn viên
+          </h1>
+
+          <p>
+            Quản lý hồ sơ, đánh giá và thông tin đoàn viên D-K66.
+          </p>
+
+        </div>
+
+
+        {/* ACTIONS */}
+
+        <div className="members-page-actions">
+
+          <div className="members-search">
+
+            <span>⌕</span>
+
             <input
               type="text"
-              placeholder="🔍 Tìm đoàn viên..."
+              placeholder="Tìm theo họ tên hoặc mã đoàn viên..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-72 rounded-xl border bg-white px-4 py-3"
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
             />
 
-<div className="flex gap-3">
+          </div>
 
-  <button
-  onClick={async () => {
-    await exportMembersToExcel(filteredMembers);
 
-    toast.success("Xuất Excel thành công!", {
-      description: "File DanhSachDoanVien.xlsx đã được tải xuống.",
-    });
-  }}
-  className="rounded-xl bg-green-600 px-5 py-3 text-white transition hover:bg-green-700"
->
-  📄 Xuất Excel
-</button>
+          <div className="members-action-group">
 
-  <button
-  onClick={() => {
-    exportMembersToPDF(filteredMembers);
+            <button
+              onClick={async () => {
+                await exportMembersToExcel(
+                  filteredMembers
+                );
 
-    toast.success("Xuất PDF thành công!", {
-      description: "File DanhSachDoanVien.pdf đã được tải xuống.",
-    });
-  }}
-  className="rounded-xl bg-red-600 px-5 py-3 text-white transition hover:bg-red-700"
->
-  📕 Xuất PDF
-</button>
+                toast.success(
+                  "Xuất Excel thành công!",
+                  {
+                    description:
+                      "File DanhSachDoanVien.xlsx đã được tải xuống.",
+                  }
+                );
+              }}
+              className="members-action members-action-excel"
+            >
+              📄
+              <span>
+                Xuất Excel
+              </span>
+            </button>
 
-</div>
+
+            <button
+              onClick={() => {
+                exportMembersToPDF(
+                  filteredMembers
+                );
+
+                toast.success(
+                  "Xuất PDF thành công!",
+                  {
+                    description:
+                      "File DanhSachDoanVien.pdf đã được tải xuống.",
+                  }
+                );
+              }}
+              className="members-action members-action-pdf"
+            >
+              📕
+              <span>
+                Xuất PDF
+              </span>
+            </button>
+
 
             <Link
               href="/dashboard/members/new"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-white transition hover:bg-blue-700"
+              className="members-action members-action-primary"
             >
-              + Thêm đoàn viên
+              +
+              <span>
+                Thêm đoàn viên
+              </span>
             </Link>
+
           </div>
-        </div>
-
-        {/* Thống kê */}
-        <div className="mb-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <StatCard
-            title="Tổng đoàn viên"
-            value={members.length}
-            color="bg-gradient-to-br from-blue-500 to-blue-700"
-            icon={<Users size={36} />}
-          />
-
-          <StatCard
-            title="Nam"
-            value={members.filter((m) => m.gender === "Nam").length}
-            color="bg-gradient-to-br from-green-500 to-green-700"
-            icon={<User size={36} />}
-          />
-
-          <StatCard
-            title="Nữ"
-            value={members.filter((m) => m.gender === "Nữ").length}
-            color="bg-gradient-to-br from-pink-500 to-pink-700"
-            icon={<UserRoundCheck size={36} />}
-          />
-
-           <StatCard
-  title="Xuất sắc"
-  value={excellentCount}
-  color="bg-gradient-to-br from-emerald-500 to-emerald-700"
-  icon={<UserRoundCheck size={36} />}
-/>
-
-<StatCard
-  title="Khá"
-  value={goodCount}
-  color="bg-gradient-to-br from-sky-500 to-sky-700"
-  icon={<UserRoundCheck size={36} />}
-/>
-
-<StatCard
-  title="Trung bình"
-  value={averageCount}
-  color="bg-gradient-to-br from-amber-400 to-orange-500"
-  icon={<UserRoundCheck size={36} />}
-/>
-
-<StatCard
-  title="Yếu"
-  value={weakCount}
-  color="bg-gradient-to-br from-red-500 to-rose-700"
-  icon={<UserRoundCheck size={36} />}
-/>
 
         </div>
 
-<div className="mt-16">
+      </div>
 
-  <div className="mt-10">
-  {/* Biểu đồ */}
 
-<div className="h-10"></div>
+      {/* =====================================================
+          THỐNG KÊ
+          ===================================================== */}
 
-<h2 className="text-3xl font-bold text-slate-800 mb-8">
-  📊 Thống kê trực quan
-</h2>
+      <div className="mb-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
-</div>
-<div className="grid grid-cols-1 gap-10 xl:grid-cols-2">
+        <StatCard
+          title="Tổng đoàn viên"
+          value={members.length}
+          color="green"
+          icon={<Users size={36} />}
+        />
 
+
+        <StatCard
+          title="Nam"
+          value={maleCount}
+          color="blue"
+          icon={<User size={36} />}
+        />
+
+
+        <StatCard
+          title="Nữ"
+          value={femaleCount}
+          color="pink"
+          icon={<UserRoundCheck size={36} />}
+        />
+
+
+        <StatCard
+          title="Xuất sắc"
+          value={excellentCount}
+          color="emerald"
+          icon={<UserRoundCheck size={36} />}
+        />
+
+
+        <StatCard
+          title="Khá"
+          value={goodCount}
+          color="sky"
+          icon={<UserRoundCheck size={36} />}
+        />
+
+
+        <StatCard
+          title="Trung bình"
+          value={averageCount}
+          color="amber"
+          icon={<UserRoundCheck size={36} />}
+        />
+
+
+        <StatCard
+          title="Yếu"
+          value={weakCount}
+          color="red"
+          icon={<UserRoundCheck size={36} />}
+        />
+
+      </div>
+
+
+      {/* =====================================================
+          THỐNG KÊ TRỰC QUAN
+          ===================================================== */}
+
+      <div className="members-analytics">
+
+        {/* SECTION HEADER */}
+
+        <div className="members-section-heading">
+
+          <div>
+
+            <span className="members-section-kicker">
+              PHÂN TÍCH
+            </span>
+
+            <h2>
+              Thống kê trực quan
+            </h2>
+
+            <p>
+              Tổng quan về cơ cấu và kết quả đánh giá đoàn viên.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        {/* ===================================================
+            CHART GRID
+            =================================================== */}
+
+        <div className="members-chart-grid">
+
+
+          {/* =================================================
+              GENDER CHART
+              ================================================= */}
+
+          <div className="members-chart-card">
+
+            <div className="members-chart-card-header">
+
+              <div>
+
+                <span className="members-chart-label">
+                  CƠ CẤU
+                </span>
+
+                <h3>
+                  Tỷ lệ đoàn viên
+                </h3>
+
+                <p className="members-chart-description">
+                  Phân bố đoàn viên theo giới tính.
+                </p>
+
+              </div>
+
+
+              <div className="members-chart-total">
+
+                {members.length}
+
+                <span>
+                  người
+                </span>
+
+              </div>
+
+            </div>
+
+
+            {/* BIỂU ĐỒ GIỚI TÍNH */}
+
+<div className="members-chart-visual">
   <GenderChart
     male={maleCount}
     female={femaleCount}
   />
-
-  <RatingChart
-    excellent={excellentCount}
-    good={goodCount}
-    average={averageCount}
-    weak={weakCount}
-  />
-
 </div>
 
 </div>
 
-        {/* Bảng */}
-<div className="h-10"></div>
-<div className="mt-20 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-left">
-                  Họ tên
-                </th>
 
-                <th className="px-6 py-4 text-left">
-                  Lớp
-                </th>
+{/* =================================================
+    RATING CHART
+    ================================================= */}
 
-                <th className="px-6 py-4 text-left">
-                  Giới tính
-                </th>
-                <th className="px-6 py-4 text-left">
-                  Tổng điểm
-                </th>
-                <th className="px-6 py-4 text-left">
-                  Xếp loại
-                </th>
+<div className="members-chart-card">
 
-                <th className="px-6 py-4 text-center">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
+  <div className="members-chart-card-header">
 
-            <tbody>
-              {filteredMembers.map((member) => (
-                <tr
-                  key={member.id}
-                  className="border-t transition hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10">
-  {member.avatar ? (
-    <img
-      src={member.avatar}
-      alt={member.full_name}
-      className="h-10 w-10 rounded-full object-cover"
-    />
-  ) : (
-    <div className="h-12 w-12 overflow-hidden rounded-full bg-gray-200">
-  {member.avatar ? (
-    <img
-      src={member.avatar}
-      alt={member.full_name}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center bg-blue-600 text-white font-bold">
-      {member.full_name.charAt(0).toUpperCase()}
+    <div>
+
+      <span className="members-chart-label">
+        ĐÁNH GIÁ
+      </span>
+
+      <h3>
+        Xếp loại đoàn viên
+      </h3>
+
+      <p className="members-chart-description">
+        Kết quả đánh giá và phân loại đoàn viên.
+      </p>
+
     </div>
-  )}
+
+    <div className="members-chart-total">
+      {ratedCount}
+      <span>
+        đã xếp loại
+      </span>
+    </div>
+
+  </div>
+
+
+  {/* BIỂU ĐỒ XẾP LOẠI */}
+
+  <div className="members-chart-visual">
+    <RatingChart
+      excellent={excellentCount}
+      good={goodCount}
+      average={averageCount}
+      weak={weakCount}
+    />
+  </div>
+
 </div>
-  )}
+
 </div>
 
-                      <div>
-                        <p className="font-semibold">
-                          {member.full_name}
-                        </p>
+</div>
 
-                        <p className="text-sm text-gray-500">
-                          {member.student_id}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
 
-                  <td className="px-6 py-4">
-                    {member.class_name}
-                  </td>
+      {/* =====================================================
+          DANH SÁCH ĐOÀN VIÊN
+          ===================================================== */}
 
-                  <td className="px-6 py-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-sm font-medium ${
-                        member.gender === "Nam"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-pink-100 text-pink-700"
-                      }`}
-                    >
-                      {member.gender}
-                    </span>
-                  </td>
+      <div className="members-list-section">
 
-                  <td className="px-6 py-4">
-                    {member.total_score ?? "—"}
-                  </td>
-                  <td className="px-6 py-4">
-  <span
-    className={`rounded-full px-3 py-1 text-sm font-medium ${
-      member.rating === "Xuất sắc"
-        ? "bg-green-100 text-green-700"
-        : member.rating === "Khá"
-        ? "bg-blue-100 text-blue-700"
-        : member.rating === "Trung bình"
-        ? "bg-yellow-100 text-yellow-700"
-        : "bg-red-100 text-red-700"
-    }`}
-  >
-    {member.rating || "Chưa xếp loại"}
-  </span>
-</td>
+        {/* LIST HEADER */}
 
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
+        <div className="members-list-header">
 
-                      <Link
-  href={`/dashboard/members/edit/${member.id}`}
-  className="rounded-lg p-2 text-yellow-600 transition hover:bg-yellow-100"
->
-  <Pencil size={18} />
-</Link>
+          <div>
 
-<Link
-  href={`/dashboard/members/score/${member.id}`}
-  className="rounded-lg p-2 text-green-600 transition hover:bg-green-100"
-  title="Chấm điểm"
->
-  ⭐
-</Link>
+            <span className="members-section-kicker">
+              HỒ SƠ ĐOÀN VIÊN
+            </span>
 
-<button
-  onClick={() => deleteMember(member.id)}
-  className="rounded-lg p-2 text-red-600 transition hover:bg-red-100"
->
-  <Trash2 size={18} />
-</button>
+            <h2>
+              Danh sách đoàn viên
+            </h2>
 
-                    </div>
-                  </td>
-                </tr>
-              ))}
+            <p>
+              {filteredMembers.length} đoàn viên được hiển thị
+            </p>
 
-              {filteredMembers.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="py-10 text-center text-gray-500"
-                  >
-                    Không tìm thấy đoàn viên.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          </div>
+
+
+          <div className="members-list-count">
+
+            <span>
+              {filteredMembers.length}
+            </span>
+
+            kết quả
+
+          </div>
+
         </div>
+
+
+        {/* ===================================================
+            TABLE
+            =================================================== */}
+
+        <div className="members-table-shell">
+
+          <div className="members-table-scroll">
+
+            <table className="members-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Đoàn viên
+                  </th>
+
+                  <th>
+                    Lớp
+                  </th>
+
+                  <th>
+                    Giới tính
+                  </th>
+
+                  <th>
+                    Tổng điểm
+                  </th>
+
+                  <th>
+                    Xếp loại
+                  </th>
+
+                  <th className="members-table-action-heading">
+                    Thao tác
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {filteredMembers.map(
+                  (member) => (
+
+                    <tr
+                      key={member.id}
+                    >
+
+                      {/* =================================
+                          ĐOÀN VIÊN
+                          ================================= */}
+
+                      <td>
+
+                        <div className="member-profile">
+
+                          <div className="member-avatar">
+
+                            {member.avatar ? (
+
+                              <img
+                                src={member.avatar}
+                                alt={member.full_name}
+                              />
+
+                            ) : (
+
+                              <span>
+                                {member.full_name
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </span>
+
+                            )}
+
+                          </div>
+
+
+                          <div className="member-profile-info">
+
+                            <strong>
+                              {member.full_name}
+                            </strong>
+
+                            <span>
+                              {member.student_id}
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                      </td>
+
+
+                      {/* =================================
+                          LỚP
+                          ================================= */}
+
+                      <td>
+
+                        <span className="member-class">
+                          {member.class_name}
+                        </span>
+
+                      </td>
+
+
+                      {/* =================================
+                          GIỚI TÍNH
+                          ================================= */}
+
+                      <td>
+
+                        <span
+                          className={`member-gender ${
+                            member.gender === "Nam"
+                              ? "member-gender-male"
+                              : "member-gender-female"
+                          }`}
+                        >
+
+                          <span className="member-status-dot" />
+
+                          {member.gender}
+
+                        </span>
+
+                      </td>
+
+
+                      {/* =================================
+                          TỔNG ĐIỂM
+                          ================================= */}
+
+                      <td>
+
+                        <div className="member-score">
+
+                          <strong>
+                            {member.total_score ?? "—"}
+                          </strong>
+
+                          {member.total_score !== null && (
+                            <span>
+                              / 100
+                            </span>
+                          )}
+
+                        </div>
+
+                      </td>
+
+
+                      {/* =================================
+                          XẾP LOẠI
+                          ================================= */}
+
+                      <td>
+
+                        <span
+                          className={`member-rating ${
+                            member.rating === "Xuất sắc"
+                              ? "member-rating-excellent"
+                              : member.rating === "Khá"
+                              ? "member-rating-good"
+                              : member.rating === "Trung bình"
+                              ? "member-rating-average"
+                              : member.rating === "Yếu"
+                              ? "member-rating-weak"
+                              : "member-rating-none"
+                          }`}
+                        >
+
+                          {member.rating ||
+                            "Chưa xếp loại"}
+
+                        </span>
+
+                      </td>
+
+
+                      {/* =================================
+                          THAO TÁC
+                          ================================= */}
+
+                      <td>
+
+                        <div className="member-actions">
+
+
+                          {/* SỬA */}
+
+                          <Link
+                            href={`/dashboard/members/edit/${member.id}`}
+                            className="member-action member-action-edit"
+                            title="Chỉnh sửa"
+                          >
+
+                            <Pencil size={17} />
+
+                          </Link>
+
+
+                          {/* CHẤM ĐIỂM */}
+
+                          <Link
+                            href={`/dashboard/members/score/${member.id}`}
+                            className="member-action member-action-score"
+                            title="Chấm điểm"
+                          >
+                            ⭐
+                          </Link>
+
+
+                          {/* XÓA */}
+
+                          <button
+                            onClick={() => {
+                              setDeleteId(
+                                member.id
+                              );
+
+                              setDeleteName(
+                                member.full_name
+                              );
+                            }}
+                            className="member-action member-action-delete"
+                            title="Xóa đoàn viên"
+                          >
+
+                            <Trash2 size={17} />
+
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  )
+                )}
+
+
+                {/* =========================================
+                    EMPTY
+                    ========================================= */}
+
+                {filteredMembers.length === 0 && (
+
+                  <tr>
+
+                    <td
+                      colSpan={6}
+                      className="members-empty"
+                    >
+
+                      <div className="members-empty-icon">
+
+                        <Users size={30} />
+
+                      </div>
+
+
+                      <strong>
+                        Không tìm thấy đoàn viên
+                      </strong>
+
+
+                      <span>
+                        Hãy thử thay đổi từ khóa tìm kiếm.
+                      </span>
+
+                    </td>
+
+                  </tr>
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* =====================================================
+          DELETE CONFIRMATION
+          ===================================================== */}
+
+      {deleteId !== null && (
+  <div className="member-delete-overlay">
+
+    <div className="member-delete-backdrop" />
+
+    <div className="member-delete-dialog">
+
+      <div className="member-delete-icon">
+        <Trash2 size={23} />
+      </div>
+
+      <div className="member-delete-content">
+
+        <span className="member-delete-kicker">
+          XÁC NHẬN THAO TÁC
+        </span>
+
+        <h3>
+          Xóa đoàn viên?
+        </h3>
+
+        <p>
+          Bạn sắp xóa hồ sơ của{" "}
+          <strong>
+            {deleteName}
+          </strong>
+          .
+          <br />
+          Hành động này không thể hoàn tác.
+        </p>
+
+      </div>
+
+
+      <div className="member-delete-warning">
+
+        <span>
+          !
+        </span>
+
+        <p>
+          Tất cả thông tin đoàn viên trong danh sách
+          sẽ bị xóa khỏi hệ thống.
+        </p>
+
+      </div>
+
+
+      <div className="member-delete-actions">
+
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteId(null);
+            setDeleteName("");
+          }}
+          className="member-delete-cancel"
+        >
+          Hủy
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (deleteId !== null) {
+              deleteMember(deleteId);
+            }
+          }}
+          className="member-delete-confirm"
+        >
+          <Trash2 size={16} />
+          Xóa đoàn viên
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
+
     </section>
   );
 }

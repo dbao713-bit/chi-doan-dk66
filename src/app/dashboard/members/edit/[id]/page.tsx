@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Save,
+  UserRound,
+  Camera,
+  BookOpen,
+  GraduationCap,
+  ShieldCheck,
+  Activity,
+  HeartHandshake,
+  CheckCircle2,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 import { calculateRating } from "@/lib/calculateRating";
 import { SCORE_RULES } from "@/lib/scoring";
@@ -19,6 +32,8 @@ type Member = {
   volunteer_score: number;
   discipline_score: number;
 };
+
+type ScoreColor = "blue" | "violet" | "pink" | "orange";
 
 export default function EditMemberPage() {
   const router = useRouter();
@@ -41,10 +56,7 @@ export default function EditMemberPage() {
 
   const [avatar, setAvatar] = useState<File | null>(null);
   const [currentAvatar, setCurrentAvatar] = useState("");
-
-  // =========================================================
-  // TÍNH ĐIỂM
-  // =========================================================
+  const [avatarPreview, setAvatarPreview] = useState("");
 
   const { total, rating } = calculateRating(
     conductScore,
@@ -54,7 +66,7 @@ export default function EditMemberPage() {
   );
 
   // =========================================================
-  // LOAD MEMBER
+  // LOAD
   // =========================================================
 
   useEffect(() => {
@@ -114,7 +126,26 @@ export default function EditMemberPage() {
   }, [id, router]);
 
   // =========================================================
-  // GIỚI HẠN ĐIỂM
+  // AVATAR PREVIEW
+  // =========================================================
+
+  useEffect(() => {
+    if (!avatar) {
+      setAvatarPreview("");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(avatar);
+
+    setAvatarPreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [avatar]);
+
+  // =========================================================
+  // SCORE
   // =========================================================
 
   function handleScoreChange(
@@ -133,32 +164,40 @@ export default function EditMemberPage() {
       score = 0;
     }
 
-    score = Math.min(Math.max(score, 0), max);
+    score = Math.min(
+      Math.max(score, 0),
+      max
+    );
 
     setter(score);
   }
 
   // =========================================================
-  // UPLOAD AVATAR
+  // UPLOAD
   // =========================================================
 
   async function uploadAvatar(file: File) {
     const extension =
       file.name.split(".").pop()?.toLowerCase() || "jpg";
 
-    const fileName = `member-${id}-${Date.now()}.${extension}`;
+    const fileName =
+      `member-${id}-${Date.now()}.${extension}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(fileName, file);
+    const { error: uploadError } =
+      await supabase.storage
+        .from("avatars")
+        .upload(fileName, file);
 
     if (uploadError) {
-      throw new Error(uploadError.message);
+      throw new Error(
+        uploadError.message
+      );
     }
 
-    const { data } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(fileName);
+    const { data } =
+      supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
 
     return data.publicUrl;
   }
@@ -167,8 +206,12 @@ export default function EditMemberPage() {
   // SAVE
   // =========================================================
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
+
+    if (saving) return;
 
     if (!studentId.trim()) {
       alert("Vui lòng nhập mã sinh viên!");
@@ -190,9 +233,9 @@ export default function EditMemberPage() {
     try {
       let avatarUrl = currentAvatar;
 
-      // Upload ảnh mới nếu có
       if (avatar) {
-        avatarUrl = await uploadAvatar(avatar);
+        avatarUrl =
+          await uploadAvatar(avatar);
       }
 
       const {
@@ -205,45 +248,77 @@ export default function EditMemberPage() {
         disciplineScore
       );
 
-      const { error } = await supabase
-        .from("members")
-        .update({
-          student_id: studentId.trim(),
-          full_name: fullName.trim(),
-          class_name: className.trim(),
-          gender,
+      const { error } =
+        await supabase
+          .from("members")
+          .update({
+            student_id:
+              studentId.trim(),
 
-          avatar: avatarUrl,
+            full_name:
+              fullName.trim(),
 
-          conduct_score: conductScore,
-          activity_score: activityScore,
-          volunteer_score: volunteerScore,
-          discipline_score: disciplineScore,
+            class_name:
+              className.trim(),
 
-          total_score: finalTotal,
-          rating: finalRating,
-        })
-        .eq("id", id);
+            gender,
+
+            avatar:
+              avatarUrl,
+
+            conduct_score:
+              conductScore,
+
+            activity_score:
+              activityScore,
+
+            volunteer_score:
+              volunteerScore,
+
+            discipline_score:
+              disciplineScore,
+
+            total_score:
+              finalTotal,
+
+            rating:
+              finalRating,
+          })
+          .eq("id", id);
 
       if (error) {
-        console.error("UPDATE MEMBER ERROR:", error);
-        alert(`Không thể cập nhật: ${error.message}`);
+        console.error(
+          "UPDATE MEMBER ERROR:",
+          error
+        );
+
+        alert(
+          `Không thể cập nhật: ${error.message}`
+        );
+
         return;
       }
 
-      alert("Đã cập nhật thông tin đoàn viên!");
+      alert(
+        "Đã cập nhật thông tin đoàn viên!"
+      );
 
-      router.push("/dashboard/members");
+      router.push(
+        "/dashboard/members"
+      );
+
       router.refresh();
     } catch (error) {
-      console.error("SAVE MEMBER ERROR:", error);
+      console.error(
+        "SAVE MEMBER ERROR:",
+        error
+      );
 
-      const message =
+      alert(
         error instanceof Error
           ? error.message
-          : "Đã xảy ra lỗi khi cập nhật đoàn viên!";
-
-      alert(message);
+          : "Đã xảy ra lỗi khi cập nhật đoàn viên!"
+      );
     } finally {
       setSaving(false);
     }
@@ -255,330 +330,451 @@ export default function EditMemberPage() {
 
   if (loading) {
     return (
-      <main className="min-h-[calc(100vh-80px)] w-full px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl animate-pulse space-y-6">
-          <div className="h-6 w-32 rounded-full bg-gray-200" />
+      <main className="member-edit-page">
 
-          <div className="rounded-3xl bg-gradient-to-r from-gray-200 to-gray-100 p-8">
-            <div className="h-10 w-80 rounded-xl bg-white/60" />
-            <div className="mt-3 h-5 w-[420px] max-w-full rounded-lg bg-white/50" />
-          </div>
+        <div className="member-edit-container">
 
-          <div className="rounded-3xl bg-white p-6 shadow-sm">
-            <div className="h-6 w-48 rounded-lg bg-gray-200" />
+          <div className="member-edit-skeleton">
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <div className="h-14 rounded-2xl bg-gray-100" />
-              <div className="h-14 rounded-2xl bg-gray-100" />
-              <div className="h-14 rounded-2xl bg-gray-100" />
-              <div className="h-14 rounded-2xl bg-gray-100" />
+            <div className="member-edit-skeleton-back" />
+
+            <div className="member-edit-skeleton-hero">
+              <div />
+              <span />
+              <span />
             </div>
+
+            <div className="member-edit-skeleton-card">
+              <div />
+              <div />
+              <div />
+              <div />
+            </div>
+
+            <div className="member-edit-skeleton-grid">
+              <div />
+              <div />
+              <div />
+              <div />
+            </div>
+
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="h-64 rounded-3xl bg-gray-100" />
-            <div className="h-64 rounded-3xl bg-gray-100" />
-            <div className="h-64 rounded-3xl bg-gray-100" />
-            <div className="h-64 rounded-3xl bg-gray-100" />
-          </div>
         </div>
+
       </main>
     );
   }
 
-  // =========================================================
-  // GIAO DIỆN
-  // =========================================================
+  const displayedAvatar =
+    avatarPreview ||
+    currentAvatar;
 
   return (
-    <main className="min-h-[calc(100vh-80px)] w-full px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl space-y-6">
+    <main className="member-edit-page">
 
-        {/* =====================================================
-            QUAY LẠI
-        ===================================================== */}
+      {/* =====================================================
+          BACKGROUND
+          ===================================================== */}
 
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard/members")}
-          className="group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
-        >
-          <span className="transition-transform duration-200 group-hover:-translate-x-1">
-            ←
-          </span>
+      <div className="member-edit-bg">
+        <div className="member-edit-orb one" />
+        <div className="member-edit-orb two" />
+        <div className="member-edit-grid" />
+      </div>
 
-          Quay lại danh sách đoàn viên
-        </button>
 
-        {/* =====================================================
+      <div className="member-edit-container">
+
+        {/* ===================================================
+            TOP BAR
+            =================================================== */}
+
+        <div className="member-edit-topbar">
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/dashboard/members"
+              )
+            }
+            className="member-edit-back"
+          >
+            <ArrowLeft size={17} />
+            <span>
+              Danh sách đoàn viên
+            </span>
+          </button>
+
+
+          <div className="member-edit-status">
+            <CheckCircle2 size={15} />
+            ĐANG CHỈNH SỬA
+          </div>
+
+        </div>
+
+
+        {/* ===================================================
             HERO
-        ===================================================== */}
+            =================================================== */}
 
-        <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-blue-700 via-indigo-600 to-violet-600 px-6 py-7 text-white shadow-xl shadow-blue-500/20 sm:px-8">
-          <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
+        <section className="member-edit-hero">
 
-          <div className="relative">
-            <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-50 backdrop-blur">
-              Quản lý đoàn viên
-            </div>
+          <div className="member-edit-hero-glow" />
 
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+          <div className="member-edit-hero-icon">
+            <UserRound size={29} />
+          </div>
+
+          <div className="member-edit-hero-content">
+
+            <span>
+              HỒ SƠ ĐOÀN VIÊN
+            </span>
+
+            <h1>
               Chỉnh sửa đoàn viên
             </h1>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">
-              Cập nhật thông tin cá nhân và điểm rèn luyện.
-              Tổng điểm và xếp loại sẽ được tính tự động.
+            <p>
+              Cập nhật thông tin hồ sơ,
+              ảnh đại diện và điểm đánh giá.
             </p>
+
           </div>
+
+          <div className="member-edit-hero-member">
+
+            <span>
+              MÃ ĐOÀN VIÊN
+            </span>
+
+            <strong>
+              {studentId}
+            </strong>
+
+          </div>
+
         </section>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* ===================================================
-              THÔNG TIN CÁ NHÂN
-          =================================================== */}
+        {/* ===================================================
+            FORM
+            =================================================== */}
 
-          <section className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-sm">
-            <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-xl">
-                  👤
+        <form
+          onSubmit={handleSubmit}
+          className="member-edit-form"
+        >
+
+          {/* =================================================
+              PERSONAL
+              ================================================= */}
+
+          <section className="member-edit-card">
+
+            <div className="member-edit-card-header">
+
+              <div className="member-edit-title-wrap">
+
+                <div className="member-edit-icon blue">
+                  <UserRound size={19} />
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-extrabold text-gray-900">
-                    Thông tin cá nhân
+
+                  <span>
+                    THÔNG TIN
+                  </span>
+
+                  <h2>
+                    Hồ sơ cá nhân
                   </h2>
 
-                  <p className="text-sm text-gray-500">
-                    Thông tin cơ bản của đoàn viên
+                  <p>
+                    Cập nhật thông tin cơ bản của đoàn viên.
                   </p>
+
                 </div>
+
               </div>
+
+              <div className="member-edit-step">
+                01
+              </div>
+
             </div>
 
-            <div className="grid gap-5 p-6 md:grid-cols-2">
 
-              {/* Mã sinh viên */}
+            <div className="member-edit-fields">
 
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-800">
-                  Mã sinh viên
-                </label>
+              {/* MÃ */}
 
-                <input
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="Ví dụ: 123456"
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5 font-medium text-gray-900 outline-none transition duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+              <Field
+                label="Mã sinh viên"
+                icon={
+                  <BookOpen size={17} />
+                }
+                value={studentId}
+                placeholder="Nhập mã sinh viên"
+                onChange={setStudentId}
+              />
 
-              {/* Họ tên */}
 
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-800">
-                  Họ và tên
-                </label>
+              {/* HỌ TÊN */}
 
-                <input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Nhập họ và tên"
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5 font-medium text-gray-900 outline-none transition duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+              <Field
+                label="Họ và tên"
+                icon={
+                  <UserRound size={17} />
+                }
+                value={fullName}
+                placeholder="Nhập họ và tên"
+                onChange={setFullName}
+              />
 
-              {/* Lớp */}
 
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-800">
-                  Lớp
-                </label>
+              {/* LỚP */}
 
-                <input
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  placeholder="Ví dụ: 11D"
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5 font-medium text-gray-900 outline-none transition duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                />
-              </div>
+              <Field
+                label="Lớp"
+                icon={
+                  <GraduationCap size={17} />
+                }
+                value={className}
+                placeholder="Ví dụ: 11D"
+                onChange={setClassName}
+              />
 
-              {/* Giới tính */}
 
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-800">
+              {/* GIỚI TÍNH */}
+
+              <div className="member-edit-field">
+
+                <label>
                   Giới tính
+                  <span>*</span>
                 </label>
 
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5 font-medium text-gray-900 outline-none transition duration-200 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                >
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
-                </select>
+                <div className="member-edit-gender">
+
+                  <button
+                    type="button"
+                    className={
+                      gender === "Nam"
+                        ? "active male"
+                        : ""
+                    }
+                    onClick={() =>
+                      setGender("Nam")
+                    }
+                  >
+                    <span>
+                      M
+                    </span>
+
+                    Nam
+                  </button>
+
+
+                  <button
+                    type="button"
+                    className={
+                      gender === "Nữ"
+                        ? "active female"
+                        : ""
+                    }
+                    onClick={() =>
+                      setGender("Nữ")
+                    }
+                  >
+                    <span>
+                      F
+                    </span>
+
+                    Nữ
+                  </button>
+
+                </div>
+
               </div>
+
             </div>
+
           </section>
 
-          {/* ===================================================
-              AVATAR
-          =================================================== */}
 
-          <section className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-sm">
-            <div className="border-b border-gray-100 bg-gradient-to-r from-fuchsia-50 via-white to-blue-50 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-fuchsia-100 text-xl">
-                  🖼️
+          {/* =================================================
+              AVATAR
+              ================================================= */}
+
+          <section className="member-edit-card">
+
+            <div className="member-edit-card-header">
+
+              <div className="member-edit-title-wrap">
+
+                <div className="member-edit-icon violet">
+                  <Camera size={19} />
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-extrabold text-gray-900">
+
+                  <span>
+                    HÌNH ẢNH
+                  </span>
+
+                  <h2>
                     Ảnh đại diện
                   </h2>
 
-                  <p className="text-sm text-gray-500">
-                    Cập nhật ảnh đại diện của đoàn viên
+                  <p>
+                    Thay đổi ảnh đại diện của đoàn viên.
                   </p>
+
                 </div>
+
               </div>
+
+              <div className="member-edit-step">
+                02
+              </div>
+
             </div>
 
-            <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
 
-              <div className="relative shrink-0">
-                {currentAvatar ? (
+            <div className="member-edit-avatar-area">
+
+              <div className="member-edit-avatar-preview">
+
+                {displayedAvatar ? (
+
                   <img
-                    src={currentAvatar}
-                    alt="Ảnh đại diện"
-                    className="h-32 w-32 rounded-3xl border-4 border-white object-cover shadow-lg ring-1 ring-gray-200"
+                    src={displayedAvatar}
+                    alt={
+                      fullName ||
+                      "Ảnh đại diện"
+                    }
                   />
+
                 ) : (
-                  <div className="flex h-32 w-32 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-100 to-indigo-100 text-4xl shadow-inner">
-                    👤
+
+                  <div>
+                    <UserRound size={42} />
+                    <span>
+                      Chưa có ảnh
+                    </span>
                   </div>
+
                 )}
+
               </div>
 
-              <div className="min-w-0 flex-1">
-                <label className="mb-2 block text-sm font-bold text-gray-800">
+
+              <div className="member-edit-avatar-info">
+
+                <h3>
+                  Cập nhật ảnh hồ sơ
+                </h3>
+
+                <p>
+                  Ảnh mới sẽ được tải lên hệ thống
+                  khi bạn lưu thay đổi.
+                </p>
+
+                <label className="member-edit-upload">
+
+                  <Camera size={16} />
+
                   Chọn ảnh mới
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setAvatar(
+                        e.target.files?.[0] ??
+                        null
+                      )
+                    }
+                  />
+
                 </label>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setAvatar(e.target.files?.[0] ?? null)
-                  }
-                  className="block w-full cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-600 file:mr-4 file:border-0 file:bg-blue-600 file:px-5 file:py-3 file:font-bold file:text-white hover:file:bg-blue-700"
-                />
+                {avatar && (
+                  <div className="member-edit-new-photo">
+                    ✓ Đã chọn ảnh mới
+                  </div>
+                )}
 
-                <p className="mt-2 text-xs leading-5 text-gray-500">
-                  Không chọn ảnh mới nếu muốn giữ nguyên ảnh hiện tại.
-                </p>
+                <small>
+                  JPG, PNG hoặc WebP · Nên sử dụng ảnh vuông.
+                </small>
+
               </div>
+
             </div>
+
           </section>
 
-          {/* ===================================================
-              HƯỚNG DẪN
-          =================================================== */}
 
-          <section className="overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm">
-            <div className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-xl text-white shadow-lg shadow-blue-600/20">
-                  💡
-                </div>
-
-                <div className="min-w-0">
-                  <h2 className="text-lg font-extrabold text-blue-950">
-                    Hướng dẫn nhập điểm
-                  </h2>
-
-                  <p className="mt-1 text-sm leading-6 text-blue-800/70">
-                    Nhập điểm theo từng nội dung đánh giá.
-                    Hệ thống sẽ tự động tính tổng điểm và xếp loại.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-
-                <div className="rounded-2xl border border-blue-100 bg-white/80 p-4">
-                  <p className="font-bold text-blue-900">
-                    📚 Học tập
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-gray-600">
-                    Đánh giá kết quả và tinh thần học tập.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-violet-100 bg-white/80 p-4">
-                  <p className="font-bold text-violet-900">
-                    ⚡ Hoạt động
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-gray-600">
-                    Đánh giá mức độ tham gia hoạt động Đoàn,
-                    lớp và trường.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-pink-100 bg-white/80 p-4">
-                  <p className="font-bold text-pink-900">
-                    ❤️ Tình nguyện
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-gray-600">
-                    Đánh giá hoạt động cộng đồng và tình nguyện.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-orange-100 bg-white/80 p-4">
-                  <p className="font-bold text-orange-900">
-                    🛡️ Kỷ luật
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-gray-600">
-                    Đánh giá ý thức chấp hành nội quy và quy định.
-                  </p>
-                </div>
-
-              </div>
-            </div>
-          </section>
-
-          {/* ===================================================
-              ĐIỂM RÈN LUYỆN
-          =================================================== */}
-
-          <section>
-            <div className="mb-5">
-              <h2 className="text-2xl font-black tracking-tight text-gray-900">
-                Điểm rèn luyện
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Nhập điểm theo từng tiêu chí. Giới hạn được lấy trực tiếp
-                từ hệ thống tính điểm.
-              </p>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-
-              {/* =================================================
-                  HỌC TẬP
+          {/* =================================================
+              SCORE
               ================================================= */}
 
-              <ScoreCard
-                icon="📚"
-                title={SCORE_RULES.conduct.label}
-                description={SCORE_RULES.conduct.description}
+          <section className="member-edit-card">
+
+            <div className="member-edit-card-header">
+
+              <div className="member-edit-title-wrap">
+
+                <div className="member-edit-icon emerald">
+                  <Activity size={19} />
+                </div>
+
+                <div>
+
+                  <span>
+                    ĐÁNH GIÁ
+                  </span>
+
+                  <h2>
+                    Điểm rèn luyện
+                  </h2>
+
+                  <p>
+                    Điều chỉnh điểm theo từng tiêu chí.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="member-edit-step">
+                03
+              </div>
+
+            </div>
+
+
+            <div className="member-edit-score-grid">
+
+              <EditScoreCard
+                title={
+                  SCORE_RULES.conduct.label
+                }
+                description={
+                  SCORE_RULES.conduct.description
+                }
+                icon={
+                  <BookOpen size={18} />
+                }
                 value={conductScore}
-                max={SCORE_RULES.conduct.max}
+                max={
+                  SCORE_RULES.conduct.max
+                }
                 color="blue"
                 onChange={(value) =>
                   handleScoreChange(
@@ -589,16 +785,21 @@ export default function EditMemberPage() {
                 }
               />
 
-              {/* =================================================
-                  HOẠT ĐỘNG
-              ================================================= */}
 
-              <ScoreCard
-                icon="⚡"
-                title={SCORE_RULES.activity.label}
-                description={SCORE_RULES.activity.description}
+              <EditScoreCard
+                title={
+                  SCORE_RULES.activity.label
+                }
+                description={
+                  SCORE_RULES.activity.description
+                }
+                icon={
+                  <Activity size={18} />
+                }
                 value={activityScore}
-                max={SCORE_RULES.activity.max}
+                max={
+                  SCORE_RULES.activity.max
+                }
                 color="violet"
                 onChange={(value) =>
                   handleScoreChange(
@@ -609,16 +810,21 @@ export default function EditMemberPage() {
                 }
               />
 
-              {/* =================================================
-                  TÌNH NGUYỆN
-              ================================================= */}
 
-              <ScoreCard
-                icon="❤️"
-                title={SCORE_RULES.volunteer.label}
-                description={SCORE_RULES.volunteer.description}
+              <EditScoreCard
+                title={
+                  SCORE_RULES.volunteer.label
+                }
+                description={
+                  SCORE_RULES.volunteer.description
+                }
+                icon={
+                  <HeartHandshake size={18} />
+                }
                 value={volunteerScore}
-                max={SCORE_RULES.volunteer.max}
+                max={
+                  SCORE_RULES.volunteer.max
+                }
                 color="pink"
                 onChange={(value) =>
                   handleScoreChange(
@@ -629,16 +835,21 @@ export default function EditMemberPage() {
                 }
               />
 
-              {/* =================================================
-                  KỶ LUẬT
-              ================================================= */}
 
-              <ScoreCard
-                icon="🛡️"
-                title={SCORE_RULES.discipline.label}
-                description={SCORE_RULES.discipline.description}
+              <EditScoreCard
+                title={
+                  SCORE_RULES.discipline.label
+                }
+                description={
+                  SCORE_RULES.discipline.description
+                }
+                icon={
+                  <ShieldCheck size={18} />
+                }
                 value={disciplineScore}
-                max={SCORE_RULES.discipline.max}
+                max={
+                  SCORE_RULES.discipline.max
+                }
                 color="orange"
                 onChange={(value) =>
                   handleScoreChange(
@@ -650,165 +861,235 @@ export default function EditMemberPage() {
               />
 
             </div>
+
           </section>
 
-          {/* ===================================================
-              KẾT QUẢ
-          =================================================== */}
 
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 p-6 text-white shadow-2xl shadow-indigo-900/20 sm:p-8">
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
-            <div className="absolute -bottom-24 left-1/4 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
+          {/* =================================================
+              SUMMARY
+              ================================================= */}
 
-            <div className="relative">
-              <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <section className="member-edit-summary">
 
-                <div>
-                  <p className="text-sm font-bold uppercase tracking-widest text-blue-300">
-                    Kết quả tự động
-                  </p>
+            <div className="member-edit-summary-bg" />
 
-                  <h2 className="mt-2 text-2xl font-black">
-                    Tổng kết đánh giá
-                  </h2>
+            <div className="member-edit-summary-header">
 
-                  <p className="mt-1 max-w-xl text-sm leading-6 text-slate-300">
-                    Kết quả được cập nhật ngay khi bạn thay đổi điểm.
-                  </p>
-                </div>
+              <div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 backdrop-blur">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Xếp loại
-                  </p>
+                <span>
+                  KẾT QUẢ TỰ ĐỘNG
+                </span>
 
-                  <p className="mt-1 text-xl font-black text-emerald-300">
-                    {rating}
-                  </p>
-                </div>
+                <h2>
+                  Tổng kết đánh giá
+                </h2>
+
+                <p>
+                  Tổng điểm và xếp loại được cập nhật ngay lập tức.
+                </p>
 
               </div>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-                <ResultBox
-                  label="Học tập"
-                  value={conductScore}
-                  max={SCORE_RULES.conduct.max}
-                />
+              <div className="member-edit-rating">
 
-                <ResultBox
-                  label="Hoạt động"
-                  value={activityScore}
-                  max={SCORE_RULES.activity.max}
-                />
+                <small>
+                  XẾP LOẠI
+                </small>
 
-                <ResultBox
-                  label="Tình nguyện"
-                  value={volunteerScore}
-                  max={SCORE_RULES.volunteer.max}
-                />
-
-                <ResultBox
-                  label="Kỷ luật"
-                  value={disciplineScore}
-                  max={SCORE_RULES.discipline.max}
-                />
+                <strong>
+                  {rating}
+                </strong>
 
               </div>
 
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-
-                  <div>
-                    <p className="text-sm text-slate-400">
-                      Tổng điểm
-                    </p>
-
-                    <p className="mt-1 text-5xl font-black tracking-tight">
-                      {total}
-                      <span className="ml-2 text-lg font-semibold text-slate-400">
-                        / 100
-                      </span>
-                    </p>
-                  </div>
-
-                  <div className="min-w-0 sm:w-1/2">
-                    <div className="mb-2 flex justify-between text-xs text-slate-400">
-                      <span>Mức hoàn thành</span>
-                      <span>{total}%</span>
-                    </div>
-
-                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-blue-400 via-violet-400 to-fuchsia-400 transition-all duration-500"
-                        style={{
-                          width: `${Math.min(total, 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                </div>
-              </div>
             </div>
+
+
+            <div className="member-edit-summary-grid">
+
+              <SummaryItem
+                title="Học tập"
+                value={conductScore}
+                max={SCORE_RULES.conduct.max}
+              />
+
+              <SummaryItem
+                title="Hoạt động"
+                value={activityScore}
+                max={SCORE_RULES.activity.max}
+              />
+
+              <SummaryItem
+                title="Tình nguyện"
+                value={volunteerScore}
+                max={SCORE_RULES.volunteer.max}
+              />
+
+              <SummaryItem
+                title="Kỷ luật"
+                value={disciplineScore}
+                max={SCORE_RULES.discipline.max}
+              />
+
+            </div>
+
+
+            <div className="member-edit-summary-total">
+
+              <div>
+
+                <span>
+                  TỔNG ĐIỂM
+                </span>
+
+                <strong>
+                  {total}
+                  <small>
+                    /100
+                  </small>
+                </strong>
+
+              </div>
+
+
+              <div className="member-edit-summary-progress">
+
+                <div
+                  style={{
+                    width:
+                      `${Math.min(
+                        total,
+                        100
+                      )}%`,
+                  }}
+                />
+
+              </div>
+
+
+              <div className="member-edit-summary-percent">
+                {total}%
+              </div>
+
+            </div>
+
           </section>
 
-          {/* ===================================================
+
+          {/* =================================================
               ACTIONS
-          =================================================== */}
+              ================================================= */}
 
-          <div className="sticky bottom-4 z-20 rounded-3xl border border-gray-200/80 bg-white/90 p-4 shadow-2xl shadow-gray-900/10 backdrop-blur-xl">
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className="member-edit-actions">
 
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard/members")}
-                disabled={saving}
-                className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-3.5 font-bold text-gray-700 transition duration-200 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Hủy
-              </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() =>
+                router.push(
+                  "/dashboard/members"
+                )
+              }
+              className="member-edit-cancel"
+            >
+              <ArrowLeft size={17} />
+              Hủy
+            </button>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-7 py-3.5 font-bold text-white shadow-lg shadow-indigo-500/25 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/30 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? "Đang lưu..." : "✓ Lưu thay đổi"}
-              </button>
 
-            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="member-edit-save"
+            >
+              {saving ? (
+                <>
+                  <span className="member-edit-spinner" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <Save size={17} />
+                  Lưu thay đổi
+                </>
+              )}
+            </button>
+
           </div>
 
         </form>
+
       </div>
+
     </main>
   );
 }
 
-// =============================================================
-// SCORE CARD
-// =============================================================
 
-type ScoreColor =
-  | "blue"
-  | "violet"
-  | "pink"
-  | "orange";
+/* =========================================================
+   FIELD
+   ========================================================= */
 
-function ScoreCard({
+function Field({
+  label,
   icon,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="member-edit-field">
+
+      <label>
+        {label}
+        <span>*</span>
+      </label>
+
+      <div className="member-edit-input-wrap">
+
+        <span className="member-edit-input-icon">
+          {icon}
+        </span>
+
+        <input
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) =>
+            onChange(e.target.value)
+          }
+        />
+
+      </div>
+
+    </div>
+  );
+}
+
+
+/* =========================================================
+   SCORE CARD
+   ========================================================= */
+
+function EditScoreCard({
   title,
   description,
+  icon,
   value,
   max,
   color,
   onChange,
 }: {
-  icon: string;
   title: string;
   description: string;
+  icon: React.ReactNode;
   value: number;
   max: number;
   color: ScoreColor;
@@ -816,163 +1097,136 @@ function ScoreCard({
 }) {
   const percentage =
     max > 0
-      ? Math.min((value / max) * 100, 100)
+      ? Math.min(
+          (value / max) * 100,
+          100
+        )
       : 0;
-
-  const styles = {
-    blue: {
-      border: "border-blue-200",
-      bg: "bg-blue-50/60",
-      icon: "bg-blue-600",
-      text: "text-blue-900",
-      accent: "bg-blue-500",
-      ring: "focus:ring-blue-500/10",
-      borderFocus: "focus:border-blue-500",
-    },
-
-    violet: {
-      border: "border-violet-200",
-      bg: "bg-violet-50/60",
-      icon: "bg-violet-600",
-      text: "text-violet-900",
-      accent: "bg-violet-500",
-      ring: "focus:ring-violet-500/10",
-      borderFocus: "focus:border-violet-500",
-    },
-
-    pink: {
-      border: "border-pink-200",
-      bg: "bg-pink-50/60",
-      icon: "bg-pink-600",
-      text: "text-pink-900",
-      accent: "bg-pink-500",
-      ring: "focus:ring-pink-500/10",
-      borderFocus: "focus:border-pink-500",
-    },
-
-    orange: {
-      border: "border-orange-200",
-      bg: "bg-orange-50/60",
-      icon: "bg-orange-500",
-      text: "text-orange-900",
-      accent: "bg-orange-500",
-      ring: "focus:ring-orange-500/10",
-      borderFocus: "focus:border-orange-500",
-    },
-  }[color];
 
   return (
     <div
-      className={`overflow-hidden rounded-3xl border ${styles.border} ${styles.bg} p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg`}
+      className={`member-edit-score-card member-edit-score-${color}`}
     >
-      <div className="flex items-start justify-between gap-4">
 
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${styles.icon} text-xl text-white shadow-lg`}
-          >
-            {icon}
-          </div>
+      <div className="member-edit-score-top">
 
-          <div className="min-w-0">
-            <h3
-              className={`truncate text-lg font-black ${styles.text}`}
-            >
-              {title}
-            </h3>
-
-            <p className="mt-1 text-xs font-semibold text-gray-500">
-              Tối đa {max} điểm
-            </p>
-          </div>
+        <div className="member-edit-score-icon">
+          {icon}
         </div>
 
-        <div className="shrink-0 text-right">
-          <span className="text-3xl font-black text-gray-900">
-            {value}
-          </span>
+        <span>
+          Tối đa {max}
+        </span>
 
-          <span className="text-sm font-semibold text-gray-400">
-            /{max}
-          </span>
-        </div>
       </div>
 
-      <p className="mt-4 min-h-[48px] text-sm leading-6 text-gray-600">
+
+      <h3>
+        {title}
+      </h3>
+
+      <p>
         {description}
       </p>
 
-      <div className="mt-5">
+
+      <div className="member-edit-score-input">
+
         <input
           type="number"
           min={0}
           max={max}
-          step={1}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-lg font-black text-gray-900 outline-none transition ${styles.borderFocus} ${styles.ring}`}
+          onChange={(e) =>
+            onChange(e.target.value)
+          }
         />
 
-        <div className="mt-3">
-          <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div
-              className={`h-full rounded-full ${styles.accent} transition-all duration-500`}
-              style={{
-                width: `${percentage}%`,
-              }}
-            />
-          </div>
+        <span>
+          / {max}
+        </span>
 
-          <div className="mt-1.5 flex justify-between text-[11px] font-semibold text-gray-400">
-            <span>0 điểm</span>
-            <span>{Math.round(percentage)}%</span>
-            <span>{max} điểm</span>
-          </div>
-        </div>
       </div>
+
+
+      <div className="member-edit-score-progress">
+
+        <div
+          style={{
+            width:
+              `${percentage}%`,
+          }}
+        />
+
+      </div>
+
+
+      <div className="member-edit-score-footer">
+
+        <span>
+          Mức đạt
+        </span>
+
+        <strong>
+          {Math.round(percentage)}%
+        </strong>
+
+      </div>
+
     </div>
   );
 }
 
-// =============================================================
-// RESULT BOX
-// =============================================================
 
-function ResultBox({
-  label,
+/* =========================================================
+   SUMMARY ITEM
+   ========================================================= */
+
+function SummaryItem({
+  title,
   value,
   max,
 }: {
-  label: string;
+  title: string;
   value: number;
   max: number;
 }) {
   const percentage =
     max > 0
-      ? Math.min((value / max) * 100, 100)
+      ? Math.min(
+          (value / max) * 100,
+          100
+        )
       : 0;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold text-slate-400">
-        {label}
-      </p>
+    <div className="member-edit-summary-item">
 
-      <p className="mt-1 text-2xl font-black">
+      <span>
+        {title}
+      </span>
+
+      <strong>
         {value}
-        <span className="ml-1 text-sm font-semibold text-slate-500">
-          / {max}
-        </span>
-      </p>
+        <small>
+          /{max}
+        </small>
+      </strong>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-400 to-violet-400 transition-all duration-500"
+      <div>
+        <span
           style={{
-            width: `${percentage}%`,
+            width:
+              `${percentage}%`,
           }}
         />
       </div>
+
     </div>
   );
 }
+
+
+/* =========================================================
+   LOADING SKELETON
+   ========================================================= */

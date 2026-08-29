@@ -6,7 +6,6 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 
 type Props = {
@@ -16,69 +15,175 @@ type Props = {
   weak: number;
 };
 
+const DATA = [
+  {
+    name: "Xuất sắc",
+    key: "excellent",
+    color: "#16a34a",
+  },
+  {
+    name: "Khá",
+    key: "good",
+    color: "#2563eb",
+  },
+  {
+    name: "Trung bình",
+    key: "average",
+    color: "#f59e0b",
+  },
+  {
+    name: "Yếu",
+    key: "weak",
+    color: "#dc2626",
+  },
+];
+
 export default function RatingChart({
   excellent,
   good,
   average,
   weak,
 }: Props) {
-  const data = [
-    {
-      name: "Xuất sắc",
-      value: excellent,
-      color: "#16A34A",
-    },
-    {
-      name: "Khá",
-      value: good,
-      color: "#2563EB",
-    },
-    {
-      name: "Trung bình",
-      value: average,
-      color: "#F59E0B",
-    },
-    {
-      name: "Yếu",
-      value: weak,
-      color: "#DC2626",
-    },
-  ];
+  const values: Record<string, number> = {
+    excellent,
+    good,
+    average,
+    weak,
+  };
+
+  const data = DATA.map((item) => ({
+    name: item.name,
+    value: values[item.key],
+    color: item.color,
+  }));
+
+  const total =
+    excellent +
+    good +
+    average +
+    weak;
 
   return (
-    <div className="rounded-3xl bg-white p-8 shadow-xl h-[420px]">
+    <div className="rating-chart-modern">
 
-      <h2 className="mb-6 text-xl font-bold">
-        Thống kê xếp loại
-      </h2>
+      {/* BIỂU ĐỒ */}
 
-      <ResponsiveContainer
-  width="100%"
-  height={300}
->
-        <PieChart>
+      <div className="rating-chart-pie">
 
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            outerRadius={110}
-            label
-          >
-            {data.map((entry, index) => (
-              <Cell
-                key={index}
-                fill={entry.color}
-              />
-            ))}
-          </Pie>
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
+          <PieChart>
 
-          <Tooltip />
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={82}
+              outerRadius={116}
+              paddingAngle={3}
+              cornerRadius={8}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`rating-${index}`}
+                  fill={entry.color}
+                />
+              ))}
+            </Pie>
 
-          <Legend />
+            <Tooltip
+              contentStyle={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "14px",
+                boxShadow:
+                  "0 10px 30px rgba(15, 23, 42, 0.08)",
+                padding: "10px 14px",
+              }}
+              formatter={(value) => [
+                `${value} người`,
+                "Số lượng",
+              ]}
+            />
 
-        </PieChart>
-      </ResponsiveContainer>
+          </PieChart>
+        </ResponsiveContainer>
+
+
+        {/* SỐ Ở GIỮA */}
+
+        <div className="rating-chart-center">
+
+          <strong>
+            {total}
+          </strong>
+
+          <span>
+            đã xếp loại
+          </span>
+
+        </div>
+
+      </div>
+
+
+      {/* DANH SÁCH XẾP LOẠI */}
+
+      <div className="rating-chart-legend">
+
+        {data.map((item) => {
+
+          const percentage =
+            total > 0
+              ? Math.round(
+                  (item.value / total) * 100
+                )
+              : 0;
+
+          return (
+            <div
+              key={item.name}
+              className="rating-chart-legend-item"
+            >
+
+              <div className="rating-chart-legend-left">
+
+                <span
+                  className="rating-chart-dot"
+                  style={{
+                    background: item.color,
+                  }}
+                />
+
+                <span>
+                  {item.name}
+                </span>
+
+              </div>
+
+
+              <div className="rating-chart-legend-value">
+
+                <strong>
+                  {item.value}
+                </strong>
+
+                <span>
+                  {percentage}%
+                </span>
+
+              </div>
+
+            </div>
+          );
+        })}
+
+      </div>
 
     </div>
   );

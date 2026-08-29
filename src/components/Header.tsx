@@ -57,12 +57,12 @@ export default function Header() {
         {/* Nút Admin - đặc biệt hữu ích trên điện thoại */}
         <Link
           href="/admin"
-          className="flex items-center gap-2 rounded-xl bg-[#005BAC] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#004a8f] sm:px-4"
-          aria-label="Đăng nhập Admin"
-        >
-          <ShieldCheck size={20} />
+          className="dashboard-admin-button"
+          aria-label="Đăng nhập quản trị"
+>
+          <ShieldCheck size={18} />
 
-          <span className="hidden sm:inline">
+          <span>
             BCH / Admin
           </span>
         </Link>
