@@ -19400,3 +19400,172 @@ button.danger {
   }
 
 }
+
+/* =========================================================
+   DASHBOARD BACKGROUND — FIX ORB POSITION
+   ========================================================= */
+
+.dashboard-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Grid nền */
+.dashboard-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Hai orb trang trí */
+.dashboard-orb {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+}
+
+/* Orb thứ nhất
+   Đặt thấp hơn, phía sau khu vực Hero */
+.dashboard-orb-one {
+  width: 420px;
+  height: 420px;
+
+  top: 520px;
+  left: 8%;
+
+  opacity: 0.45;
+}
+
+/* Orb thứ hai */
+.dashboard-orb-two {
+  width: 360px;
+  height: 360px;
+
+  top: 760px;
+  right: 5%;
+
+  opacity: 0.3;
+}
+
+/* Nội dung dashboard luôn nằm trên background */
+.dashboard-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Hero cũng nằm trên background */
+.dashboard-hero {
+  position: relative;
+  z-index: 2;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1024px) {
+
+  .dashboard-orb-one {
+    width: 340px;
+    height: 340px;
+
+    top: 500px;
+    left: 3%;
+  }
+
+  .dashboard-orb-two {
+    width: 280px;
+    height: 280px;
+
+    top: 720px;
+    right: 2%;
+  }
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  .dashboard-orb-one {
+    width: 230px;
+    height: 230px;
+
+    top: 430px;
+    left: -80px;
+
+    opacity: 0.25;
+  }
+
+  .dashboard-orb-two {
+    width: 190px;
+    height: 190px;
+
+    top: 650px;
+    right: -70px;
+
+    opacity: 0.2;
+  }
+
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .dashboard-orb-one {
+    width: 180px;
+    height: 180px;
+
+    top: 400px;
+    left: -70px;
+  }
+
+  .dashboard-orb-two {
+    width: 150px;
+    height: 150px;
+
+    top: 620px;
+    right: -60px;
+  }
+
+}
+
+@media (max-width: 768px) {
+
+  .dashboard-page {
+    min-height: calc(100vh - 80px);
+  }
+
+  .dashboard-content {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  .dashboard-hero {
+    margin-top: 0 !important;
+  }
+
+}
+
+@media (min-width: 769px) {
+
+  .dashboard-content {
+    padding-top: 0;
+  }
+
+  .dashboard-hero {
+    margin-top: 0;
+  }
+
+}
