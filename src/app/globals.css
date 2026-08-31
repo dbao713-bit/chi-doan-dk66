@@ -19569,3 +19569,31 @@ button.danger {
   }
 
 }
+
+/* =========================================================
+   SCORE PAGE — DECORATIVE BACKGROUND
+   Background must never cover page content.
+   ========================================================= */
+
+.score-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.score-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.score-orb {
+  pointer-events: none;
+}
+
+.score-background-grid {
+  pointer-events: none;
+}

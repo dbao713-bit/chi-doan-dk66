@@ -84,7 +84,6 @@ export default function Dashboard() {
       {/* BACKGROUND DECORATION */}
       <div className="dashboard-orb dashboard-orb-one" />
       <div className="dashboard-orb dashboard-orb-two" />
-      <div className="dashboard-grid" />
 
       <div className="dashboard-content">
 

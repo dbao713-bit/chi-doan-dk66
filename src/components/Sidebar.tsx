@@ -11,6 +11,7 @@ import {
   Image,
   Settings,
   GraduationCap,
+  Trophy,
 } from "lucide-react";
 
 import { useSidebar } from "@/context/SidebarContext";
@@ -39,6 +40,7 @@ const extensionItems = [
     title: "Sinh hoạt",
     icon: CalendarDays,
   },
+
   {
     href: "/dashboard/documents",
     title: "Tài liệu",
@@ -48,6 +50,12 @@ const extensionItems = [
     href: "/dashboard/library",
     title: "Thư viện",
     icon: Image,
+  },
+
+  {
+    href: "/dashboard/frog-race",
+    title: "Đua ếch",
+    icon: Trophy,
   },
 ];
 

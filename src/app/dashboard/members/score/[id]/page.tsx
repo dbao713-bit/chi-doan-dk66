@@ -219,11 +219,11 @@ export default function ScorePage() {
           BACKGROUND
           ===================================================== */}
 
-      <div className="score-bg">
-        <div className="score-orb score-orb-one" />
-        <div className="score-orb score-orb-two" />
-        <div className="score-grid" />
-      </div>
+<div className="score-bg">
+  <div className="score-orb score-orb-one" />
+  <div className="score-orb score-orb-two" />
+  <div className="score-background-grid" />
+</div>
 
       <div className="score-container">
 
@@ -393,7 +393,7 @@ export default function ScorePage() {
           </div>
 
 
-          <div className="score-grid">
+          <div className="score-input-grid">
 
             <ScoreInputCard
               title={SCORE_RULES.conduct.label}
