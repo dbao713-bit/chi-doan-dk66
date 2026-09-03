@@ -1,6 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import AuthGuard from "@/components/AuthGuard";
+import { SidebarProvider } from "@/context/SidebarContext";
 
 export default function DashboardLayout({
   children,
@@ -9,17 +10,19 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <main className="flex min-h-screen bg-[#f5f8fc]">
-        <Sidebar />
+      <SidebarProvider>
+        <main className="flex min-h-screen bg-[#f5f8fc]">
+          <Sidebar />
 
-        <div className="min-w-0 flex-1">
-          <Header />
+          <div className="min-w-0 flex-1">
+            <Header />
 
-          <div className="dashboard-main-content">
-            {children}
+            <div className="dashboard-main-content">
+              {children}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </SidebarProvider>
     </AuthGuard>
   );
 }

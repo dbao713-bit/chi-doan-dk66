@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
+import WebsiteAI from "@/components/ai/WebsiteAI";
 
 /* =========================================================
    TYPES
@@ -250,47 +251,68 @@ export default function Home() {
      GALLERY
   ======================================================= */
 
-  async function loadGallery() {
-    setLoadingGallery(true);
+async function loadGallery() {
+  console.log("=== GALLERY: START ===");
 
-    const { data, error } = await supabase
-      .from("gallery")
-      .select(
-        `
-          id,
-          title,
-          description,
-          image_url,
-          sort_order,
-          is_visible
-        `
-      )
-      .eq("is_visible", true)
-      .order("sort_order", {
-        ascending: true,
-      })
-      .order("created_at", {
-        ascending: false,
-      });
+  setLoadingGallery(true);
 
-    if (error) {
-      console.error(
-        "LOAD GALLERY ERROR:",
-        error
-      );
+  const { data, error } = await supabase
+    .from("gallery")
+    .select(`
+      id,
+      title,
+      description,
+      image_url,
+      sort_order,
+      is_visible
+    `)
+    .eq("is_visible", true)
+    .order("sort_order", {
+      ascending: true,
+    })
+    .order("created_at", {
+      ascending: false,
+    });
 
-      setGallery([]);
-      setLoadingGallery(false);
-      return;
-    }
+  console.log("GALLERY DATA:", data);
+  console.log("GALLERY ERROR:", error);
+  console.log(
+    "GALLERY COUNT:",
+    data?.length ?? 0
+  );
 
-    setGallery(
-      (data ?? []) as GalleryItem[]
+  if (data && data.length > 0) {
+    console.log(
+      "GALLERY FIRST ITEM:",
+      data[0]
     );
 
-    setGalleryIndex(0);
-    setLoadingGallery(false);
+    console.log(
+      "GALLERY FIRST IMAGE URL:",
+      data[0].image_url
+    );
   }
+
+  if (error) {
+    console.error(
+      "LOAD GALLERY ERROR:",
+      error
+    );
+
+    setGallery([]);
+    setLoadingGallery(false);
+    return;
+  }
+
+  setGallery(
+    (data ?? []) as GalleryItem[]
+  );
+
+  setGalleryIndex(0);
+  setLoadingGallery(false);
+
+  console.log("=== GALLERY: END ===");
+}
 
   /* =======================================================
      ACTIVITIES
@@ -2688,6 +2710,7 @@ export default function Home() {
           </div>
 
         )}
+        <WebsiteAI />
 
     </main>
   );

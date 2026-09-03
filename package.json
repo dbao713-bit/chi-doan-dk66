@@ -12,6 +12,7 @@
     "@base-ui/react": "^1.6.0",
     "@ckeditor/ckeditor5-build-classic": "^41.4.2",
     "@ckeditor/ckeditor5-react": "^11.2.0",
+    "@google/genai": "^2.20.0",
     "@onlyoffice/document-editor-react": "^2.2.0",
     "@supabase/supabase-js": "^2.111.0",
     "@tiptap/extension-color": "^3.29.2",

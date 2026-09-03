@@ -19597,3 +19597,952 @@ button.danger {
 .score-background-grid {
   pointer-events: none;
 }
+
+/* =========================================================
+   ANNOUNCEMENT DASHBOARD — FINAL BUTTON OVERRIDE
+   Đặt cuối globals.css để thắng các style cũ
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   HERO ACTIONS
+   "Thêm thông báo" + "Làm mới"
+   --------------------------------------------------------- */
+
+.announcement-hero-buttons {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 10px !important;
+  margin-top: 26px !important;
+}
+
+.announcement-hero-button {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+
+  height: 44px !important;
+  min-height: 44px !important;
+
+  flex: 0 0 auto !important;
+
+  padding: 0 17px !important;
+  margin: 0 !important;
+
+  gap: 9px !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  border-radius: 13px !important;
+
+  background: #ffffff !important;
+  color: #202427 !important;
+
+  box-shadow:
+    0 8px 22px rgba(24, 31, 34, 0.13) !important;
+
+  text-decoration: none !important;
+
+  white-space: nowrap !important;
+  overflow: visible !important;
+
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+
+  cursor: pointer !important;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease !important;
+}
+
+/* Không cho icon tạo thành block riêng */
+.announcement-hero-button-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+
+  height: 20px !important;
+  min-height: 20px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  flex: 0 0 20px !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  background: transparent !important;
+  color: #202427 !important;
+
+  box-shadow: none !important;
+}
+
+.announcement-hero-button-icon svg {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px !important;
+}
+
+/* Chữ phải nằm cùng hàng với icon */
+.announcement-hero-button-label {
+  display: inline-block !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+
+  height: auto !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  color: #202427 !important;
+
+  white-space: nowrap !important;
+
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+}
+
+/* Hover */
+.announcement-hero-button:hover {
+  transform: translateY(-2px) !important;
+
+  background: #ffffff !important;
+
+  border-color: rgba(255, 255, 255, 0.95) !important;
+
+  box-shadow:
+    0 13px 28px rgba(24, 31, 34, 0.18) !important;
+}
+
+.announcement-hero-button:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+/* Nút làm mới */
+.announcement-hero-refresh {
+  padding-left: 17px !important;
+  padding-right: 17px !important;
+}
+
+/* Trạng thái không bị dính vào button */
+.announcement-hero-status {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+
+  margin-left: 3px !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* =========================================================
+   XEM / SỬA / XÓA
+   Cả 3 đều là block button đồng nhất
+   ========================================================= */
+
+.announcement-row-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+
+  gap: 8px !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+
+  flex: 0 0 auto !important;
+}
+
+.announcement-row-action,
+.announcement-row-actions a,
+.announcement-row-actions button {
+  display: inline-flex !important;
+
+  align-items: center !important;
+  justify-content: center !important;
+
+  flex-direction: row !important;
+
+  width: 68px !important;
+  min-width: 68px !important;
+  max-width: 68px !important;
+
+  height: 38px !important;
+  min-height: 38px !important;
+
+  flex: 0 0 68px !important;
+
+  padding: 0 9px !important;
+  margin: 0 !important;
+
+  gap: 6px !important;
+
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 11px !important;
+
+  outline: none !important;
+
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+
+  text-decoration: none !important;
+
+  white-space: nowrap !important;
+
+  box-sizing: border-box !important;
+
+  cursor: pointer !important;
+
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease !important;
+}
+
+.announcement-row-action svg {
+  width: 15px !important;
+  height: 15px !important;
+
+  min-width: 15px !important;
+
+  flex: 0 0 15px !important;
+}
+
+.announcement-row-action > span {
+  display: inline-block !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+
+  height: auto !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  white-space: nowrap !important;
+
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+}
+
+/* XEM — xám */
+.announcement-row-action-view {
+  color: #59636a !important;
+
+  background: #f7f8f9 !important;
+
+  border-color: #dfe3e6 !important;
+}
+
+.announcement-row-action-view:hover {
+  color: #3e474d !important;
+
+  background: #eef1f3 !important;
+
+  border-color: #cdd3d7 !important;
+
+  transform: translateY(-2px) !important;
+
+  box-shadow:
+    0 7px 16px rgba(55, 69, 77, 0.10) !important;
+}
+
+/* SỬA — vàng */
+.announcement-row-action-edit {
+  color: #a96e08 !important;
+
+  background: #fff9ea !important;
+
+  border-color: #efdcae !important;
+}
+
+.announcement-row-action-edit:hover {
+  color: #8f5c04 !important;
+
+  background: #fff0c8 !important;
+
+  border-color: #e4ca85 !important;
+
+  transform: translateY(-2px) !important;
+
+  box-shadow:
+    0 7px 16px rgba(164, 117, 20, 0.10) !important;
+}
+
+/* XÓA — đỏ */
+.announcement-row-action-delete {
+  color: #d0444c !important;
+
+  background: #fff4f4 !important;
+
+  border-color: #efd2d5 !important;
+}
+
+.announcement-row-action-delete:hover {
+  color: #bb343c !important;
+
+  background: #ffe5e6 !important;
+
+  border-color: #e7babe !important;
+
+  transform: translateY(-2px) !important;
+
+  box-shadow:
+    0 7px 16px rgba(184, 53, 62, 0.10) !important;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  .announcement-hero-buttons {
+    flex-wrap: wrap !important;
+  }
+
+  .announcement-hero-button {
+    height: 42px !important;
+    min-height: 42px !important;
+
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  .announcement-hero-button-label {
+    font-size: 11px !important;
+  }
+
+  .announcement-row-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+}
+
+/* =========================================================
+   WEBSITE AI — TRỢ LÝ D-K66
+   ========================================================= */
+
+.website-ai-floating-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9998;
+
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  min-width: 158px;
+  height: 62px;
+
+  padding: 7px 15px 7px 8px;
+
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.94);
+
+  box-shadow:
+    0 16px 40px rgba(15, 61, 95, 0.18),
+    0 4px 14px rgba(15, 61, 95, 0.08);
+
+  backdrop-filter: blur(18px);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.website-ai-floating-button:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 22px 48px rgba(15, 61, 95, 0.24),
+    0 6px 18px rgba(15, 61, 95, 0.12);
+}
+
+.website-ai-floating-glow {
+  position: absolute;
+  inset: -4px;
+
+  border-radius: 21px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.2),
+    rgba(125, 211, 252, 0.12),
+    rgba(255, 255, 255, 0)
+  );
+
+  filter: blur(10px);
+
+  opacity: 0.75;
+
+  pointer-events: none;
+}
+
+.website-ai-floating-icon {
+  position: relative;
+  z-index: 1;
+
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 46px;
+
+  border-radius: 14px;
+
+  color: white;
+
+  background: linear-gradient(
+    135deg,
+    #0759a5,
+    #2788d5
+  );
+
+  box-shadow:
+    0 8px 18px rgba(7, 89, 165, 0.28);
+}
+
+.website-ai-floating-text {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: flex-start;
+  justify-content: center;
+
+  line-height: 1.15;
+
+  text-align: left;
+}
+
+.website-ai-floating-text strong {
+  color: #173b56;
+
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.website-ai-floating-text small {
+  margin-top: 4px;
+
+  color: #71808c;
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+
+/* =========================================================
+   CHAT PANEL
+   ========================================================= */
+
+.website-ai-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+
+  z-index: 9999;
+
+  width: min(400px, calc(100vw - 32px));
+  height: min(650px, calc(100vh - 48px));
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  border: 1px solid rgba(210, 224, 235, 0.9);
+  border-radius: 25px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 30px 80px rgba(15, 50, 75, 0.22),
+    0 8px 28px rgba(15, 50, 75, 0.10);
+
+  animation: website-ai-panel-in 0.28s ease both;
+}
+
+@keyframes website-ai-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.website-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 78px;
+
+  padding: 15px 16px;
+
+  color: white;
+
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(255, 255, 255, 0.18),
+      transparent 35%
+    ),
+    linear-gradient(
+      135deg,
+      #0759a5,
+      #176fae 55%,
+      #2c8bca
+    );
+}
+
+.website-ai-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.website-ai-avatar {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 15px;
+
+  color: white;
+
+  background: rgba(255, 255, 255, 0.17);
+
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.website-ai-title {
+  font-size: 15px;
+  font-weight: 850;
+
+  letter-spacing: -0.01em;
+}
+
+.website-ai-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  margin-top: 4px;
+
+  color: rgba(255, 255, 255, 0.72);
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.website-ai-status span {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #7ee7a5;
+
+  box-shadow:
+    0 0 0 4px rgba(126, 231, 165, 0.13);
+}
+
+.website-ai-close {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+
+  color: rgba(255, 255, 255, 0.88);
+
+  background: rgba(255, 255, 255, 0.09);
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.website-ai-close:hover {
+  background: rgba(255, 255, 255, 0.17);
+
+  transform: rotate(4deg);
+}
+
+
+/* =========================================================
+   MESSAGES
+   ========================================================= */
+
+.website-ai-messages {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding: 20px 16px;
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(219, 239, 253, 0.7),
+      transparent 35%
+    ),
+    #f7fafc;
+
+  scrollbar-width: thin;
+}
+
+.website-ai-message-row {
+  display: flex;
+  align-items: flex-end;
+
+  gap: 7px;
+
+  margin-bottom: 15px;
+}
+
+.website-ai-message-row-user {
+  justify-content: flex-end;
+}
+
+.website-ai-message-row-ai {
+  justify-content: flex-start;
+}
+
+.website-ai-small-avatar {
+  width: 27px;
+  height: 27px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 27px;
+
+  border-radius: 9px;
+
+  color: white;
+
+  background: #1669a8;
+}
+
+.website-ai-user-avatar {
+  color: #52616d;
+
+  background: #e7edf2;
+}
+
+.website-ai-bubble {
+  max-width: 78%;
+
+  padding: 11px 13px;
+
+  border-radius: 15px;
+
+  font-size: 13px;
+  line-height: 1.62;
+
+  word-break: break-word;
+}
+
+.website-ai-bubble-ai {
+  color: #273b49;
+
+  border: 1px solid #e2eaf0;
+
+  border-bottom-left-radius: 5px;
+
+  background: white;
+
+  box-shadow:
+    0 4px 12px rgba(25, 55, 75, 0.045);
+}
+
+.website-ai-bubble-user {
+  color: white;
+
+  border-bottom-right-radius: 5px;
+
+  background: linear-gradient(
+    135deg,
+    #126bb0,
+    #2788ca
+  );
+
+  box-shadow:
+    0 5px 14px rgba(18, 107, 176, 0.17);
+}
+
+
+/* =========================================================
+   TYPING
+   ========================================================= */
+
+.website-ai-typing {
+  display: flex;
+  align-items: center;
+
+  gap: 4px;
+
+  min-width: 51px;
+}
+
+.website-ai-typing span {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #7b8b96;
+
+  animation: website-ai-typing 1.2s infinite ease-in-out;
+}
+
+.website-ai-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.website-ai-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes website-ai-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-3px);
+
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+.website-ai-input-area {
+  padding: 12px 14px 13px;
+
+  border-top: 1px solid #e5ebef;
+
+  background: white;
+}
+
+.website-ai-input-wrap {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  min-height: 47px;
+
+  padding: 4px 5px 4px 13px;
+
+  border: 1px solid #dce5eb;
+  border-radius: 15px;
+
+  background: #f9fbfc;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.website-ai-input-wrap:focus-within {
+  border-color: #82bce1;
+
+  box-shadow:
+    0 0 0 3px rgba(37, 133, 199, 0.09);
+
+  background: white;
+}
+
+.website-ai-input-wrap input {
+  flex: 1;
+
+  min-width: 0;
+
+  border: none;
+  outline: none;
+
+  color: #243846;
+
+  background: transparent;
+
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.website-ai-input-wrap input::placeholder {
+  color: #98a6af;
+}
+
+.website-ai-input-wrap input:disabled {
+  opacity: 0.6;
+}
+
+.website-ai-input-wrap button {
+  width: 37px;
+  height: 37px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 37px;
+
+  border: none;
+  border-radius: 11px;
+
+  color: white;
+
+  background: #166eaf;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.website-ai-input-wrap button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  background: #0e5f9a;
+}
+
+.website-ai-input-wrap button:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.35;
+}
+
+.website-ai-powered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 4px;
+
+  margin-top: 8px;
+
+  color: #9aa6ad;
+
+  font-size: 9px;
+  font-weight: 650;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .website-ai-floating-button {
+    right: 15px;
+    bottom: 15px;
+
+    min-width: 0;
+
+    width: 58px;
+    height: 58px;
+
+    padding: 5px;
+
+    border-radius: 17px;
+  }
+
+  .website-ai-floating-icon {
+    width: 48px;
+    height: 48px;
+
+    flex-basis: 48px;
+
+    border-radius: 14px;
+  }
+
+  .website-ai-floating-text {
+    display: none;
+  }
+
+  .website-ai-panel {
+    right: 8px;
+    bottom: 8px;
+
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+
+    border-radius: 22px;
+  }
+}
