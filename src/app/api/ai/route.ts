@@ -3,41 +3,65 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 /* =========================================================
+   AI ROUTE — CHI ĐOÀN D-K66
+   FAST PATH + AI-FIRST + RAG-LIKE CONTEXT + SUPABASE + CACHE
+========================================================= */
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/* =========================================================
    CONFIG
 ========================================================= */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const SUPABASE_URL =
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 
-// Giữ model hiện tại của project để tránh tự ý đổi model khi deploy.
-const GEMINI_MODEL = "gemini-3.7-flash";
+const GEMINI_MODELS = [
+  ...new Set(
+    [
+      process.env.GEMINI_MODEL,
+      "gemini-3.6-flash",
+    ].filter(Boolean)
+  ),
+] as string[];
+
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const SUPABASE_SECRET_KEY =
+  process.env.SUPABASE_SECRET_KEY;
 
 const ai = GEMINI_API_KEY
-  ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+  ? new GoogleGenAI({
+      apiKey: GEMINI_API_KEY,
+    })
   : null;
 
 const supabase =
   SUPABASE_URL && SUPABASE_SECRET_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      })
+    ? createClient(
+        SUPABASE_URL,
+        SUPABASE_SECRET_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      )
     : null;
 
 /* =========================================================
    TYPES
 ========================================================= */
 
+type AIMode = "public" | "admin";
+
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
-
-type AIMode = "public" | "admin";
 
 type AIRequest = {
   message?: unknown;
@@ -46,922 +70,2232 @@ type AIRequest = {
   mode?: unknown;
 };
 
-type IntentMap = {
-  websiteInfo: boolean;
-  introduction: boolean;
-  founder: boolean;
-  secretary: boolean;
-  deputySecretary: boolean;
-  committeeMember: boolean;
-  bchList: boolean;
-  schoolYouthUnion: boolean;
-  schoolLeadership: boolean;
-  address: boolean;
-  contact: boolean;
-  documents: boolean;
-  library: boolean;
-  activities: boolean;
-  announcements: boolean;
-  login: boolean;
-  dashboard: boolean;
-  onlyoffice: boolean;
-  usageGuide: boolean;
-  aiHelp: boolean;
-  security: boolean;
-  memberCount: boolean;
-  maleCount: boolean;
-  femaleCount: boolean;
-  latestAnnouncement: boolean;
-  latestActivity: boolean;
-  latestDocument: boolean;
+type DatabaseContext = {
+  members?: string;
+  announcements?: string;
+  activities?: string;
+  documents?: string;
 };
 
 type CacheItem = {
-  answer: string;
+  value: string;
   expiresAt: number;
 };
 
-type GeminiState = {
-  until: number;
+type GeminiHealth = {
+  unavailableUntil: number;
   reason: string;
 };
 
+type GeminiFailureReason =
+  | "missing_api_key"
+  | "rate_limit"
+  | "quota_exceeded"
+  | "service_unavailable"
+  | "timeout"
+  | "network"
+  | "model_not_found"
+  | "unknown";
+
+type GeminiCallResult =
+  | {
+      ok: true;
+      answer: string;
+      model: string;
+    }
+  | {
+      ok: false;
+      reason: GeminiFailureReason;
+      retryAfterMs?: number;
+      detail?: string;
+    };
+
+type RateLimitBucket = {
+  count: number;
+  resetAt: number;
+};
+
 /* =========================================================
-   CACHE / RATE LIMIT PROTECTION
+   CONSTANTS
 ========================================================= */
 
-const answerCache = new Map<string, CacheItem>();
-const CACHE_TTL = 15 * 60 * 1000;
-const GEMINI_CACHE_TTL = 30 * 60 * 1000;
-const DATABASE_CACHE_TTL = 5 * 60 * 1000;
+const MAX_MESSAGE_LENGTH = 5000;
 
-let geminiState: GeminiState | null = null;
+const MAX_HISTORY_MESSAGES = 12;
 
-function getCache(key: string) {
-  const item = answerCache.get(key);
-  if (!item) return null;
+const MAX_HISTORY_ITEM_LENGTH = 1200;
 
-  if (Date.now() >= item.expiresAt) {
-    answerCache.delete(key);
+const CACHE_TTL = 10 * 60 * 1000;
+
+const DATABASE_CACHE_TTL = 2 * 60 * 1000;
+
+const GEMINI_CACHE_TTL = 20 * 60 * 1000;
+
+const GEMINI_COOLDOWN_MIN = 30 * 1000;
+
+const GEMINI_COOLDOWN_MAX = 5 * 60 * 1000;
+
+const AI_RATE_LIMIT_WINDOW_MS =
+  Number(process.env.AI_RATE_LIMIT_WINDOW_MS) ||
+  60 * 1000;
+
+const AI_RATE_LIMIT_MAX_REQUESTS =
+  Number(process.env.AI_RATE_LIMIT_MAX_REQUESTS) ||
+  15;
+
+const GEMINI_RETRY_DELAYS = [700, 1600];
+
+const GEMINI_SHORT_RETRY_MAX_MS = 3000;
+
+/* =========================================================
+   MEMORY CACHE
+========================================================= */
+
+const responseCache =
+  new Map<string, CacheItem>();
+
+const rateLimitBuckets =
+  new Map<string, RateLimitBucket>();
+
+let geminiHealth: GeminiHealth | null = null;
+
+function getCache(
+  key: string
+): string | null {
+  const item =
+    responseCache.get(key);
+
+  if (!item) {
     return null;
   }
 
-  return item.answer;
-}
-
-function setCache(key: string, answer: string, ttl = CACHE_TTL) {
-  answerCache.set(key, {
-    answer,
-    expiresAt: Date.now() + ttl,
-  });
-
-  while (answerCache.size > 500) {
-    const firstKey = answerCache.keys().next().value;
-    if (!firstKey) break;
-    answerCache.delete(firstKey);
-  }
-}
-
-function getGeminiState() {
-  if (!geminiState) return null;
-  if (Date.now() >= geminiState.until) {
-    geminiState = null;
+  if (
+    Date.now() >=
+    item.expiresAt
+  ) {
+    responseCache.delete(key);
     return null;
   }
-  return geminiState;
+
+  return item.value;
 }
 
-function setGeminiCooldown(ms: number, reason: string) {
-  const safeMs = Math.min(Math.max(ms, 30_000), 10 * 60_000);
-  geminiState = {
-    until: Date.now() + safeMs,
+function setCache(
+  key: string,
+  value: string,
+  ttl: number = CACHE_TTL
+) {
+  responseCache.set(
+    key,
+    {
+      value,
+      expiresAt:
+        Date.now() + ttl,
+    }
+  );
+
+  /*
+   * Tránh memory cache tăng vô hạn.
+   */
+  while (
+    responseCache.size > 300
+  ) {
+    const firstKey =
+      responseCache
+        .keys()
+        .next()
+        .value;
+
+    if (!firstKey) {
+      break;
+    }
+
+    responseCache.delete(
+      firstKey
+    );
+  }
+}
+
+function clearExpiredCache() {
+  const now = Date.now();
+
+  for (
+    const [key, item]
+    of responseCache.entries()
+  ) {
+    if (
+      item.expiresAt <= now
+    ) {
+      responseCache.delete(key);
+    }
+  }
+}
+
+
+/* =========================================================
+   REQUEST RATE LIMIT
+   Chống spam ở tầng API theo IP.
+   Lưu ý: đây là bộ giới hạn in-memory theo từng Vercel instance.
+   Nó có tác dụng ngay mà không cần thêm database.
+========================================================= */
+
+function getClientIp(
+  request: Request
+) {
+  const forwarded =
+    request.headers.get(
+      "x-forwarded-for"
+    );
+
+  if (forwarded) {
+    return (
+      forwarded
+        .split(",")[0]
+        ?.trim() ||
+      "unknown"
+    );
+  }
+
+  return (
+    request.headers.get(
+      "x-real-ip"
+    ) ||
+    request.headers.get(
+      "cf-connecting-ip"
+    ) ||
+    "unknown"
+  );
+}
+
+function checkRateLimit(
+  key: string
+) {
+  const now = Date.now();
+
+  const current =
+    rateLimitBuckets.get(key);
+
+  if (
+    !current ||
+    now >= current.resetAt
+  ) {
+    const bucket: RateLimitBucket = {
+      count: 1,
+      resetAt:
+        now +
+        AI_RATE_LIMIT_WINDOW_MS,
+    };
+
+    rateLimitBuckets.set(
+      key,
+      bucket
+    );
+
+    return {
+      allowed: true,
+      remaining:
+        Math.max(
+          AI_RATE_LIMIT_MAX_REQUESTS -
+            1,
+          0
+        ),
+      retryAfterSeconds: 0,
+    };
+  }
+
+  if (
+    current.count >=
+    AI_RATE_LIMIT_MAX_REQUESTS
+  ) {
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds:
+        Math.max(
+          1,
+          Math.ceil(
+            (current.resetAt -
+              now) /
+              1000
+          )
+        ),
+    };
+  }
+
+  current.count += 1;
+
+  rateLimitBuckets.set(
+    key,
+    current
+  );
+
+  return {
+    allowed: true,
+    remaining:
+      Math.max(
+        AI_RATE_LIMIT_MAX_REQUESTS -
+          current.count,
+        0
+      ),
+    retryAfterSeconds: 0,
+  };
+}
+
+function clearExpiredRateLimits() {
+  const now = Date.now();
+
+  for (
+    const [key, bucket]
+    of rateLimitBuckets.entries()
+  ) {
+    if (
+      bucket.resetAt <= now
+    ) {
+      rateLimitBuckets.delete(
+        key
+      );
+    }
+  }
+}
+
+/* =========================================================
+   GEMINI HEALTH / COOLDOWN
+========================================================= */
+
+function getGeminiHealth() {
+  if (!geminiHealth) {
+    return null;
+  }
+
+  if (
+    Date.now() >=
+    geminiHealth.unavailableUntil
+  ) {
+    geminiHealth = null;
+    return null;
+  }
+
+  return geminiHealth;
+}
+
+function setGeminiCooldown(
+  milliseconds: number,
+  reason: string
+) {
+  const safeDuration =
+    Math.min(
+      Math.max(
+        milliseconds,
+        GEMINI_COOLDOWN_MIN
+      ),
+      GEMINI_COOLDOWN_MAX
+    );
+
+  geminiHealth = {
+    unavailableUntil:
+      Date.now() +
+      safeDuration,
     reason,
   };
 }
 
 /* =========================================================
-   WEBSITE KNOWLEDGE
+   TEXT UTILITIES
 ========================================================= */
 
-const WEBSITE_KNOWLEDGE = `
-THÔNG TIN CHÍNH THỨC VỀ WEBSITE
-
-- Tên: Chi đoàn D-K66 – Trường THPT Hà Trung.
-- Website phục vụ thông tin, hoạt động, thông báo, tài liệu, thư viện hình ảnh và quản lý của Chi đoàn.
-- Các khu vực chính: Trang chủ, Hoạt động, Thông báo, Tài liệu, Thư viện, Liên hệ, Đăng nhập BCH / Admin và Dashboard.
-- Website có tích hợp OnlyOffice cho một số chức năng tài liệu/soạn thảo.
-
-BAN CHẤP HÀNH CHI ĐOÀN D-K66
-- Bí thư BCH Chi đoàn: Nguyễn Thị Huyền.
-- Phó Bí thư BCH Chi đoàn: Đinh Anh Bảo.
-- Uỷ viên BCH Chi đoàn: Đỗ Ngọc Châu.
-
-NGƯỜI SÁNG LẬP / XÂY DỰNG WEBSITE
-- Website được Phó Bí thư BCH Đinh Anh Bảo sáng lập và trực tiếp xây dựng.
-- Đinh Anh Bảo tham gia lên ý tưởng, thiết kế, phát triển website, Dashboard, hệ thống AI và tích hợp OnlyOffice.
-
-THÔNG TIN ĐOÀN VIÊN
-- 26 đoàn viên nam.
-- 18 đoàn viên nữ.
-- Tổng cộng 44 đoàn viên theo thông tin hiện được cấu hình trong knowledge.
-
-ĐỊA CHỈ
-- Chi đoàn D-K66 – Trường THPT Hà Trung.
-- Địa chỉ được cấu hình: xã Hoạt Giang, tỉnh Thanh Hoá.
-
-BAN CHẤP HÀNH ĐOÀN TRƯỜNG / BAN GIÁM HIỆU
-- Thầy Trịnh Cao Cường: Bí thư BCH Đoàn trường.
-- Cô Lê Thị Đạm: Phó Bí thư BCH Đoàn trường.
-- Thầy Trịnh Xuân Thanh: Bí thư Đảng Bộ, Hiệu trưởng.
-- Thầy Nguyễn Văn Dũng: Phó Bí thư Đảng bộ, Hiệu Phó.
-- Cô Đoàn Văn Ân: Hiệu Phó.
-
-MỤC ĐÍCH TRỢ LÝ AI
-- Hướng dẫn người dùng sử dụng website.
-- Giải thích các chức năng và khu vực.
-- Trả lời câu hỏi về Chi đoàn khi có dữ liệu.
-- Trả lời dữ liệu động từ Supabase khi hệ thống hỗ trợ.
-- Hỗ trợ Ban Chấp hành/người quản trị hiểu Dashboard.
-- Hỗ trợ OnlyOffice và luồng tài liệu ở mức hướng dẫn.
-
-NGUYÊN TẮC TIN CẬY
-- Ưu tiên dữ liệu thực tế từ hệ thống/Supabase.
-- Sau đó ưu tiên knowledge chính thức của website.
-- Không được bịa tên người, số liệu, thông báo, hoạt động hoặc tài liệu.
-- Nếu không có dữ liệu thì phải nói rõ chưa có dữ liệu.
-- Không tiết lộ API key, secret key, token, mật khẩu hoặc cấu hình bảo mật.
-- Không hướng dẫn vượt qua đăng nhập hoặc phân quyền.
-- Không tự nhận đã thực hiện hành động mà hệ thống chưa thực hiện.
-
-PHONG CÁCH
-- Luôn trả lời bằng tiếng Việt.
-- Thân thiện, rõ ràng, tự nhiên.
-- Câu hỏi đơn giản: trả lời ngắn gọn.
-- Câu hỏi hướng dẫn: trả lời thành các bước dễ làm theo.
-- Không bắt người dùng phải hỏi đúng một mẫu câu cố định.
-`;
-
-/* =========================================================
-   TEXT NORMALIZATION / MATCHING
-========================================================= */
-
-function normalize(text: string) {
+function normalize(
+  text: string
+) {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /đ/g,
+      "d"
+    )
+    .replace(
+      /[^\p{L}\p{N}\s]/gu,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
     .trim();
 }
 
-function hasAny(text: string, patterns: string[]) {
-  return patterns.some((pattern) => text.includes(pattern));
+function hasAny(
+  text: string,
+  keywords: string[]
+) {
+  return keywords.some(
+    (keyword) =>
+      text.includes(keyword)
+  );
 }
 
-function hasAll(text: string, patterns: string[]) {
-  return patterns.every((pattern) => text.includes(pattern));
+function truncate(
+  value:
+    | string
+    | null
+    | undefined,
+  maxLength: number
+) {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    value.length <=
+    maxLength
+  ) {
+    return value;
+  }
+
+  return `${value.slice(
+    0,
+    maxLength
+  )}...`;
 }
 
-function isQuestionAbout(text: string, subject: string[]) {
-  return hasAny(text, subject);
+function cleanText(
+  value: unknown
+) {
+  if (
+    typeof value !==
+    "string"
+  ) {
+    return "";
+  }
+
+  return value.trim();
 }
 
-function isWhereQuestion(text: string) {
-  return hasAny(text, [
-    "o dau",
-    "cho nao",
-    "nam o dau",
-    "tim o dau",
-    "vao dau",
-    "xem o dau",
-  ]);
-}
-
-function isWhoQuestion(text: string) {
-  return hasAny(text, [
-    "ai la",
-    "ai",
-    "nguoi nao",
-    "ten gi",
-    "cho toi biet",
-    "la nguoi nao",
-  ]);
+function unique<T>(
+  items: T[]
+) {
+  return [
+    ...new Set(items),
+  ];
 }
 
 /* =========================================================
-   INTENT ENGINE
+   CACHE KEY
 ========================================================= */
 
-function getIntent(message: string): IntentMap {
-  const q = normalize(message);
+function createCacheKey(
+  message: string,
+  mode: AIMode
+) {
+  const normalized =
+    normalize(message);
 
-  const websiteInfo = hasAny(q, [
-    "website nay la gi",
-    "web nay la gi",
-    "trang nay la gi",
-    "website nay lam gi",
-    "website dung de lam gi",
-    "muc dich website",
-    "muc dich cua website",
-    "web dung de lam gi",
-  ]);
+  return `${mode}:${normalized}`;
+}
 
-  const founder = hasAny(q, [
-    "ai sang lap website",
-    "ai sang lap",
-    "ai tao ra website",
-    "ai tao website",
-    "ai lam ra website",
-    "ai xay dung website",
-    "ai phat trien website",
-    "nguoi sang lap website",
-    "nguoi sang lap",
-    "nguoi tao ra website",
-    "website do ai tao",
-    "website do ai lam",
-    "website duoc tao boi ai",
-    "website duoc xay dung boi ai",
-    "tac gia website",
-    "ai la nguoi sang lap",
-    "ai la nguoi tao website",
-    "ai la nguoi xay dung website",
-  ]);
+/* =========================================================
+   WEBSITE CORE KNOWLEDGE
+========================================================= */
 
-  const secretary = hasAny(q, [
-    "bi thu bch la ai",
-    "bi thu chi doan la ai",
-    "bi thu la ai",
-    "ai la bi thu",
-    "ai dang la bi thu",
-    "ai lam bi thu",
-    "nguoi dung dau chi doan la ai",
-    "nguoi dung dau bch la ai",
-  ]);
+const WEBSITE_KNOWLEDGE = `
+# DANH TÍNH WEBSITE
 
-  const deputySecretary = hasAny(q, [
-    "pho bi thu bch la ai",
-    "pho bi thu chi doan la ai",
-    "pho bi thu la ai",
-    "ai la pho bi thu",
-    "ai dang la pho bi thu",
-    "ai lam pho bi thu",
-  ]);
+Tên website:
+Chi đoàn D-K66 – Trường THPT Hà Trung.
 
-  const committeeMember = hasAny(q, [
-    "uy vien bch la ai",
-    "uy vien ban chap hanh la ai",
-    "ai la uy vien bch",
-    "ai la uy vien ban chap hanh",
-    "bch co uy vien nao",
-  ]);
+Website được xây dựng nhằm:
+- Lưu giữ thông tin và kỷ niệm của Chi đoàn.
+- Giới thiệu Chi đoàn D-K66.
+- Quản lý đoàn viên.
+- Đăng tải hoạt động.
+- Đăng tải thông báo.
+- Quản lý tài liệu.
+- Lưu trữ thư viện hình ảnh.
+- Hỗ trợ Ban Chấp hành quản lý công việc.
 
-  const bchList = hasAny(q, [
-    "bch gom nhung ai",
-    "ban chap hanh gom nhung ai",
-    "thanh phan bch",
-    "thanh phan ban chap hanh",
-    "cac thanh vien bch",
-    "danh sach bch",
-    "bch chi doan gom ai",
-  ]);
+Các khu vực chính:
+- Trang chủ.
+- Giới thiệu.
+- Hoạt động.
+- Thông báo.
+- Tài liệu.
+- Thư viện.
+- Liên hệ.
+- Đăng nhập BCH/Admin.
+- Dashboard quản trị.
 
-  const schoolYouthUnion = hasAny(q, [
-    "bi thu doan truong",
-    "pho bi thu doan truong",
-    "bch doan truong",
-    "ban chap hanh doan truong",
-    "doan truong la ai",
-    "lanh dao doan truong",
-  ]);
+# BAN CHẤP HÀNH CHI ĐOÀN D-K66
 
-  const schoolLeadership = hasAny(q, [
-    "hieu truong la ai",
-    "hieu pho la ai",
-    "ban giam hieu",
-    "bgh gom nhung ai",
-    "hieu truong",
-    "hieu pho",
-  ]);
+Bí thư:
+Nguyễn Thị Huyền.
 
-  const address = hasAny(q, [
-    "dia chi chi doan",
-    "dia chi truong",
-    "truong o dau",
-    "chi doan o dau",
-    "dia diem chi doan",
-    "dia chi",
-  ]);
+Phó Bí thư:
+Đinh Anh Bảo.
 
-  const contact = hasAny(q, [
-    "lien he",
-    "contact",
-    "can lien he ai",
-    "muon lien he chi doan",
-    "lien lac voi chi doan",
-  ]);
+Uỷ viên BCH:
+Đỗ Ngọc Châu.
 
-  const introduction = hasAny(q, [
-    "gioi thieu chi doan",
-    "gioi thieu d k66",
-    "chi doan la gi",
-    "d k66 la gi",
-    "dk66 la gi",
-    "gioi thieu",
-  ]);
+# NGƯỜI XÂY DỰNG WEBSITE
 
-  const documents =
+Website Chi đoàn D-K66 được Đinh Anh Bảo sáng lập và trực tiếp xây dựng.
+
+Đinh Anh Bảo tham gia:
+- Lên ý tưởng.
+- Thiết kế giao diện.
+- Phát triển website.
+- Xây dựng Dashboard.
+- Phát triển hệ thống AI.
+- Tích hợp các chức năng quản lý.
+- Tích hợp OnlyOffice.
+
+# THÔNG TIN ĐOÀN VIÊN
+
+Thông tin cấu hình hiện có:
+- 26 đoàn viên nam.
+- 18 đoàn viên nữ.
+- Tổng cộng 44 đoàn viên.
+
+Nếu dữ liệu Supabase khác với thông tin cấu hình thì ưu tiên dữ liệu Supabase.
+
+# ĐỊA CHỈ
+
+Chi đoàn D-K66 – Trường THPT Hà Trung.
+
+Địa chỉ được cấu hình:
+Xã Hoạt Giang, tỉnh Thanh Hoá.
+
+# ĐOÀN TRƯỜNG
+
+Bí thư BCH Đoàn trường:
+Thầy Trịnh Cao Cường.
+
+Phó Bí thư BCH Đoàn trường:
+Cô Lê Thị Đạm.
+
+# BAN GIÁM HIỆU
+
+Hiệu trưởng:
+Thầy Trịnh Xuân Thanh.
+
+Phó Hiệu trưởng:
+Thầy Nguyễn Văn Dũng.
+
+Phó Hiệu trưởng:
+Cô Đoàn Văn Ân.
+
+# CÔNG NGHỆ WEBSITE
+
+Website có:
+- Next.js.
+- Supabase.
+- Vercel.
+- Gemini AI.
+- OnlyOffice trong một số luồng tài liệu.
+
+# MỤC ĐÍCH CỦA TRỢ LÝ AI
+
+Trợ lý AI có hai vai trò:
+
+1. Trợ lý thông minh của website Chi đoàn D-K66.
+Có thể trả lời về:
+- Chi đoàn.
+- BCH.
+- Đoàn viên.
+- Hoạt động.
+- Thông báo.
+- Tài liệu.
+- Thư viện.
+- Website.
+- Dashboard.
+- OnlyOffice.
+
+2. Trợ lý AI tổng quát.
+Nếu người dùng hỏi kiến thức ngoài website như:
+- Học tập.
+- Lập trình.
+- Toán.
+- Văn.
+- Lịch sử.
+- Khoa học.
+- Công nghệ.
+- Cuộc sống.
+- Viết nội dung.
+- Phân tích.
+- Giải thích.
+
+Thì vẫn trả lời bằng năng lực AI tổng quát.
+
+# NGUYÊN TẮC ĐỘ CHÍNH XÁC
+
+Ưu tiên theo thứ tự:
+
+1. Dữ liệu động được cung cấp từ Supabase.
+2. Thông tin chính thức trong WEBSITE_KNOWLEDGE.
+3. Kiến thức tổng quát của mô hình AI.
+
+Không được bịa:
+- Tên người.
+- Số liệu Chi đoàn.
+- Hoạt động.
+- Thông báo.
+- Tài liệu.
+- Sự kiện.
+
+Nếu không có dữ liệu website thì nói rõ không có dữ liệu.
+
+# BẢO MẬT
+
+Không tiết lộ:
+- API key.
+- Secret key.
+- Access token.
+- JWT secret.
+- Mật khẩu.
+- Cookie.
+- Thông tin xác thực.
+- Cấu hình bí mật.
+
+Không hướng dẫn vượt qua:
+- Đăng nhập.
+- Phân quyền.
+- Xác thực.
+
+# PHONG CÁCH
+
+- Luôn trả lời bằng tiếng Việt trừ khi người dùng yêu cầu ngôn ngữ khác.
+- Tự nhiên như một trợ lý AI hiện đại.
+- Không nói máy móc.
+- Không liên tục nhắc lại "tôi là AI của website".
+- Không ép người dùng phải hỏi đúng mẫu.
+- Hiểu tiếng Việt không dấu.
+- Hiểu viết tắt.
+- Hiểu lỗi chính tả nhẹ.
+- Hiểu ngữ cảnh từ các tin nhắn trước.
+- Với câu hỏi đơn giản: trả lời ngắn.
+- Với câu hỏi phức tạp: giải thích đầy đủ.
+- Nếu câu hỏi mơ hồ: cố gắng suy luận trước khi yêu cầu làm rõ.
+`;
+
+/* =========================================================
+   SYSTEM INSTRUCTION
+========================================================= */
+
+const SYSTEM_INSTRUCTION = `
+Bạn là "Trợ lý AI D-K66", một trợ lý AI hiện đại được tích hợp trên website Chi đoàn D-K66 – Trường THPT Hà Trung.
+
+Bạn không phải chatbot keyword đơn giản.
+
+Bạn phải suy luận ý nghĩa câu hỏi theo ngữ cảnh tự nhiên.
+
+Bạn có khả năng:
+- Trả lời thông tin về Chi đoàn D-K66.
+- Sử dụng dữ liệu hệ thống được cung cấp trong context.
+- Hướng dẫn sử dụng website.
+- Giải thích Dashboard.
+- Trả lời kiến thức tổng quát ngoài phạm vi website.
+- Giải quyết các vấn đề học tập, công nghệ, lập trình và đời sống.
+
+QUY TẮC QUAN TRỌNG:
+
+1. Không tự giới hạn mình chỉ trả lời câu hỏi về website.
+
+2. Nếu người dùng hỏi một vấn đề tổng quát:
+Hãy trả lời như một AI thông minh bình thường.
+
+3. Nếu người dùng hỏi về Chi đoàn:
+Ưu tiên dữ liệu trong context.
+
+4. Nếu người dùng hỏi về dữ liệu động:
+Chỉ sử dụng dữ liệu Supabase được cung cấp.
+
+5. Không bịa dữ liệu nội bộ.
+
+6. Không trả lời kiểu:
+"Mình chỉ có thể hỗ trợ..."
+trừ khi thực sự cần thiết.
+
+7. Không nói:
+"Mình chưa được huấn luyện..."
+hoặc
+"Mình không xử lý được câu này..."
+nếu câu hỏi là kiến thức tổng quát mà bạn có thể trả lời.
+
+8. Khi người dùng hỏi tiếp một câu liên quan đến câu trả lời trước:
+Phải đọc lịch sử hội thoại để hiểu ngữ cảnh.
+
+9. Nếu người dùng viết:
+- không dấu
+- viết tắt
+- sai chính tả nhẹ
+
+hãy tự suy luận ý định.
+
+10. Không tiết lộ thông tin bí mật hệ thống.
+
+11. Không tự nhận đã thao tác trên hệ thống nếu bạn chỉ đang tư vấn.
+
+12. Không cần nhắc lại toàn bộ context.
+
+13. Trả lời trực tiếp vào vấn đề.
+
+14. Có thể sử dụng markdown nhẹ:
+- tiêu đề
+- danh sách
+- in đậm
+- code block
+
+nhưng không lạm dụng.
+
+MỤC TIÊU:
+Mang lại trải nghiệm gần với Gemini hoặc ChatGPT:
+thông minh, tự nhiên, hiểu ngữ cảnh, hữu ích và linh hoạt.
+`;
+
+/* =========================================================
+   PAGE CONTEXT
+========================================================= */
+
+function getPageContext(
+  page: string
+) {
+  const p =
+    normalize(page || "/");
+
+  if (
+    p === "/" ||
+    p === ""
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang ở trang chủ website.
+`;
+  }
+
+  if (
+    p.includes("dashboard")
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang ở Dashboard quản trị.
+`;
+  }
+
+  if (
+    p.includes("announcement")
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang xem khu vực Thông báo.
+`;
+  }
+
+  if (
+    p.includes("activity")
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang xem khu vực Hoạt động.
+`;
+  }
+
+  if (
+    p.includes("document")
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang ở khu vực Tài liệu.
+`;
+  }
+
+  if (
+    p.includes("library")
+  ) {
+    return `
+NGỮ CẢNH TRANG:
+Người dùng đang ở khu vực Thư viện.
+`;
+  }
+
+  return `
+NGỮ CẢNH TRANG:
+Trang hiện tại: ${page}
+`;
+}
+
+/* =========================================================
+   FAST PATH
+   CÂU HỎI TĨNH / CHẮC CHẮN
+   KHÔNG QUERY SUPABASE
+   KHÔNG GỌI GEMINI
+========================================================= */
+
+function getFastPathAnswer(
+  message: string
+): string | null {
+  const q =
+    normalize(message);
+
+  /*
+   * =======================================================
+   * BÍ THƯ BCH
+   * =======================================================
+   */
+
+  const askingSecretary =
     hasAny(q, [
-      "tai lieu",
-      "van ban",
-      "ke hoach",
-      "bien ban",
-      "cong van",
-    ]) && (isWhereQuestion(q) || hasAny(q, ["xem", "mo", "tim"]));
+      "bi thu",
+      "bi thu bch",
+      "bi thu ban chap hanh",
+    ]);
 
-  const library =
-    hasAny(q, ["thu vien", "hinh anh", "anh hoat dong", "anh"]) &&
-    (isWhereQuestion(q) || hasAny(q, ["xem", "tim"]));
+  const askingWho =
+    hasAny(q, [
+      "la ai",
+      "ai",
+      "nguoi nao",
+      "nguoi gi",
+      "ten gi",
+      "la nguoi nao",
+    ]);
 
-  const activities =
-    hasAny(q, ["hoat dong", "su kien"]) &&
-    (isWhereQuestion(q) || hasAny(q, ["xem", "tim"]));
-
-  const announcements =
-    hasAny(q, ["thong bao", "tin tuc"]) &&
-    (isWhereQuestion(q) || hasAny(q, ["xem", "tim"]));
-
-  const login = hasAny(q, [
-    "dang nhap bch o dau",
-    "dang nhap admin o dau",
-    "dang nhap o dau",
-    "vao admin",
-    "vao bch",
-    "login bch",
-    "login admin",
-    "tai khoan admin",
-  ]);
-
-  const dashboard = hasAny(q, [
-    "dashboard la gi",
-    "dashboard o dau",
-    "khu quan ly",
-    "khu vuc quan ly",
-    "khu vuc quan tri",
-    "trang quan tri",
-    "trang quan ly",
-    "chuc nang dashboard",
-    "dashboard co gi",
-    "dashboard co nhung gi",
-  ]);
-
-  const onlyoffice = hasAny(q, [
-    "onlyoffice la gi",
-    "only office la gi",
-    "onlyoffice",
-    "only office",
-    "soan thao tai lieu",
-    "trinh soan thao",
-    "chinh sua word",
-    "word online",
-  ]);
-
-  const usageGuide = hasAny(q, [
-    "huong dan su dung website",
-    "cach su dung website",
-    "dung website nhu the nao",
-    "su dung website nhu the nao",
-    "website co nhung chuc nang gi",
-    "website co nhung muc nao",
-    "website gom nhung gi",
-    "huong dan website",
-  ]);
-
-  const aiHelp = hasAny(q, [
-    "ai lam duoc gi",
-    "tro ly ai lam duoc gi",
-    "co the hoi ai gi",
-    "hoi ai duoc gi",
-    "ai ho tro gi",
-    "ai nay lam gi",
-    "chatbot lam duoc gi",
-  ]);
-
-  const security = hasAny(q, [
-    "bao mat",
-    "mat khau",
-    "phan quyen",
-    "quyen admin",
-    "quyen truy cap",
-    "thong tin bao mat",
-    "tai khoan co an toan khong",
-  ]);
-
-  const memberCount = hasAny(q, [
-    "bao nhieu doan vien",
-    "bao nhieu thanh vien",
-    "co bao nhieu thanh vien",
-    "so luong doan vien",
-    "so luong thanh vien",
-    "tong so doan vien",
-    "tong so thanh vien",
-    "quan so doan vien",
-    "si so doan vien",
-    "chi doan co bao nhieu nguoi",
-  ]);
-
-  const maleCount = hasAny(q, [
-    "bao nhieu nam",
-    "co bao nhieu nam",
-    "so nam",
-    "doan vien nam",
-    "thanh vien nam",
-  ]);
-
-  const femaleCount = hasAny(q, [
-    "bao nhieu nu",
-    "co bao nhieu nu",
-    "so nu",
-    "doan vien nu",
-    "thanh vien nu",
-  ]);
-
-  const latestAnnouncement = hasAny(q, [
-    "thong bao moi nhat",
-    "thong bao gan nhat",
-    "thong bao gan day",
-    "thong bao moi",
-    "tin moi nhat",
-    "tin thong bao moi",
-    "thong bao vua dang",
-  ]);
-
-  const latestActivity = hasAny(q, [
-    "hoat dong moi nhat",
-    "hoat dong gan nhat",
-    "hoat dong gan day",
-    "su kien moi nhat",
-    "su kien gan day",
-    "hoat dong moi",
-  ]);
-
-  const latestDocument = hasAny(q, [
-    "tai lieu moi nhat",
-    "tai lieu gan nhat",
-    "tai lieu gan day",
-    "tai lieu moi",
-    "van ban moi nhat",
-    "van ban gan day",
-  ]);
-
-  return {
-    websiteInfo,
-    introduction,
-    founder,
-    secretary,
-    deputySecretary,
-    committeeMember,
-    bchList,
-    schoolYouthUnion,
-    schoolLeadership,
-    address,
-    contact,
-    documents,
-    library,
-    activities,
-    announcements,
-    login,
-    dashboard,
-    onlyoffice,
-    usageGuide,
-    aiHelp,
-    security,
-    memberCount,
-    maleCount,
-    femaleCount,
-    latestAnnouncement,
-    latestActivity,
-    latestDocument,
-  };
-}
-
-/* =========================================================
-   PAGE KNOWLEDGE
-========================================================= */
-
-function getPageKnowledge(page: string) {
-  const p = normalize(page);
-
-  if (p === "/") {
-    return `Người dùng đang ở trang chủ. Trang chủ có Giới thiệu, Hoạt động, Thông báo, Tài liệu, Thư viện, Liên hệ và Đăng nhập BCH / Admin.`;
+  if (
+    askingSecretary &&
+    askingWho &&
+    !q.includes("pho bi thu")
+  ) {
+    return (
+      "Bí thư BCH Chi đoàn D-K66 là " +
+      "Nguyễn Thị Huyền."
+    );
   }
 
-  if (p.includes("dashboard")) {
-    return `Người dùng đang ở khu vực Dashboard quản trị. Đây là khu vực dành cho Ban Chấp hành/người có quyền phù hợp, với các nhóm chức năng như thành viên, thông báo, hoạt động, tài liệu và thư viện.`;
+  /*
+   * Trường hợp người dùng chỉ hỏi:
+   * "Bí thư?"
+   */
+
+  if (
+    q === "bi thu"
+  ) {
+    return (
+      "Bí thư BCH Chi đoàn D-K66 là " +
+      "Nguyễn Thị Huyền."
+    );
   }
 
-  if (p.includes("announcement")) {
-    return `Người dùng đang ở khu vực Thông báo.`;
+  /*
+   * =======================================================
+   * PHÓ BÍ THƯ BCH
+   * =======================================================
+   */
+
+  const askingViceSecretary =
+    hasAny(q, [
+      "pho bi thu",
+      "pho bi thu bch",
+      "pho bi thu ban chap hanh",
+    ]);
+
+  if (
+    askingViceSecretary &&
+    askingWho
+  ) {
+    return (
+      "Phó Bí thư BCH Chi đoàn D-K66 là " +
+      "Đinh Anh Bảo."
+    );
   }
 
-  if (p.includes("document")) {
-    return `Người dùng đang ở khu vực Tài liệu/Soạn thảo. Website có tích hợp OnlyOffice.`;
+  if (
+    q === "pho bi thu"
+  ) {
+    return (
+      "Phó Bí thư BCH Chi đoàn D-K66 là " +
+      "Đinh Anh Bảo."
+    );
   }
 
-  if (p.includes("library")) {
-    return `Người dùng đang ở khu vực Thư viện hình ảnh.`;
+  /*
+   * =======================================================
+   * UỶ VIÊN BCH
+   * =======================================================
+   */
+
+  const askingCommitteeMember =
+    hasAny(q, [
+      "uy vien",
+      "uy vien bch",
+      "uy vien ban chap hanh",
+      "uy vien cua bch",
+    ]);
+
+  if (
+    askingCommitteeMember &&
+    askingWho
+  ) {
+    return (
+      "Uỷ viên BCH Chi đoàn D-K66 là " +
+      "Đỗ Ngọc Châu."
+    );
   }
 
-  if (p.includes("activity")) {
-    return `Người dùng đang ở khu vực Hoạt động.`;
-  }
+  /*
+   * =======================================================
+   * TOÀN BỘ BCH
+   * =======================================================
+   */
 
-  return `Trang hiện tại: ${page}`;
-}
+  const askingCommittee =
+    hasAny(q, [
+      "bch",
+      "ban chap hanh",
+    ]);
 
-/* =========================================================
-   DIRECT ANSWERS
-========================================================= */
+  const askingList =
+    hasAny(q, [
+      "gom nhung ai",
+      "gom ai",
+      "co nhung ai",
+      "co ai",
+      "danh sach",
+      "thanh phan",
+      "bao gom nhung ai",
+      "bao gom ai",
+    ]);
 
-function getDirectAnswer(message: string, mode: AIMode) {
-  const q = normalize(message);
-  const intent = getIntent(message);
+  if (
+    askingCommittee &&
+    askingList
+  ) {
+    return `Ban Chấp hành Chi đoàn D-K66 gồm:
 
-  if (intent.founder) {
-    return `Website Chi đoàn D-K66 – Trường THPT Hà Trung được P. Bí thư Đinh Anh Bảo sáng lập và trực tiếp xây dựng.`;
-  }
-
-  if (intent.secretary) {
-    return `Bí thư BCH Chi đoàn D-K66 là Đ/c: Nguyễn Thị Huyền.`;
-  }
-
-  if (intent.deputySecretary) {
-    return `Phó Bí thư BCH Chi đoàn D-K66 là Đ/c: Đinh Anh Bảo.`;
-  }
-
-  if (intent.committeeMember) {
-    return `Uỷ viên BCH Chi đoàn D-K66 là Đ/c: Đỗ Ngọc Châu.`;
-  }
-
-  if (intent.bchList) {
-    return `Ban Chấp hành Chi đoàn D-K66 hiện gồm:
 • Bí thư: Nguyễn Thị Huyền
 • Phó Bí thư: Đinh Anh Bảo
-• Uỷ viên: Đỗ Ngọc Châu`;
+• Uỷ viên BCH: Đỗ Ngọc Châu`;
   }
 
-  if (intent.schoolYouthUnion) {
-    return `Theo thông tin hiện có của website:
-• Bí thư BCH Đoàn trường: Thầy Trịnh Cao Cường
-• Phó Bí thư BCH Đoàn trường: Cô Lê Thị Đạm`;
+  /*
+   * =======================================================
+   * NGƯỜI XÂY DỰNG WEBSITE
+   * =======================================================
+   */
+
+  if (
+    hasAny(q, [
+      "ai tao website",
+      "ai lam website",
+      "ai xay dung website",
+      "nguoi sang lap website",
+      "ai sang lap website",
+      "website do ai tao",
+      "website do ai xay dung",
+    ])
+  ) {
+    return (
+      "Website Chi đoàn D-K66 được " +
+      "Đinh Anh Bảo sáng lập và trực tiếp xây dựng."
+    );
   }
 
-  if (intent.schoolLeadership) {
-    return `Theo thông tin hiện có:
-• Hiệu trưởng: Thầy Trịnh Xuân Thanh
-• Phó Hiệu trưởng: Thầy Nguyễn Văn Dũng
-• Phó Hiệu trưởng: Cô Đoàn Văn Ân`;
+  /*
+   * =======================================================
+   * WEBSITE LÀ GÌ
+   * =======================================================
+   */
+
+  if (
+    hasAny(q, [
+      "website nay la gi",
+      "web nay la gi",
+      "chi doan d k66 la gi",
+      "dk66 la gi",
+      "website dung de lam gi",
+    ])
+  ) {
+    return `Đây là website của Chi đoàn D-K66 – Trường THPT Hà Trung.
+
+Website được xây dựng để giới thiệu Chi đoàn, lưu giữ thông tin và kỷ niệm, quản lý đoàn viên, hoạt động, thông báo, tài liệu, thư viện hình ảnh và hỗ trợ Ban Chấp hành.`;
   }
 
-  if (intent.address) {
-    return `Địa chỉ: xã Hoạt Giang, tỉnh Thanh Hoá. Tên đơn vị: Chi đoàn D-K66 – Trường THPT Hà Trung.`;
+  /*
+   * =======================================================
+   * ĐỊA CHỈ
+   * =======================================================
+   */
+
+  if (
+    hasAny(q, [
+      "chi doan o dau",
+      "chi doan nam o dau",
+      "dia chi chi doan",
+      "truong ha trung o dau",
+    ])
+  ) {
+    return (
+      "Chi đoàn D-K66 – Trường THPT Hà Trung, " +
+      "địa chỉ được cấu hình tại xã Hoạt Giang, tỉnh Thanh Hoá."
+    );
   }
 
-  if (intent.contact) {
-    return `Bạn có thể sử dụng mục “Liên hệ” trên website để xem thông tin liên hệ được công bố của Chi đoàn.`;
-  }
+  /*
+   * =======================================================
+   * SỐ LƯỢNG ĐOÀN VIÊN CẤU HÌNH
+   *
+   * Lưu ý:
+   * Đây chỉ là fast path cho dữ liệu cấu hình.
+   * Nếu câu hỏi cần dữ liệu động chính xác,
+   * hệ thống vẫn có thể dùng Supabase.
+   * =======================================================
+   */
 
-  if (intent.websiteInfo) {
-    return `Đây là website lưu giữ kỷ niệm, và tích hợp quản lý đoàn viên của BCH Chi đoàn D-K66 – Trường THPT Hà Trung.
-
-Website phục vụ:
-• Giới thiệu Chi đoàn
-• Hoạt động và sự kiện
-• Thông báo
-• Tài liệu
-• Thư viện hình ảnh
-• Liên hệ
-• Khu vực quản lý dành cho BCH/Admin`;
-  }
-
-  if (intent.introduction) {
-    return `Chi đoàn D-K66 là tập thể đoàn viên thuộc Trường THPT Hà Trung. Website được xây dựng để giới thiệu, lưu trữ và hỗ trợ quản lý thông tin, hoạt động, thông báo, tài liệu và hình ảnh của Chi đoàn.`;
-  }
-
-  if (intent.documents) {
-    return `Bạn có thể vào mục “Tài liệu” trên thanh điều hướng để xem các văn bản, kế hoạch, biên bản và những tài liệu khác của Chi đoàn.`;
-  }
-
-  if (intent.library) {
-    return `Bạn có thể vào mục “Thư viện” để xem hình ảnh và nội dung liên quan đến hoạt động của Chi đoàn.`;
-  }
-
-  if (intent.activities) {
-    return `Bạn có thể vào mục “Hoạt động” để xem các hoạt động và sự kiện của Chi đoàn D-K66.`;
-  }
-
-  if (intent.announcements) {
-    return `Bạn có thể vào mục “Thông báo” để xem các thông báo của Chi đoàn.`;
-  }
-
-  if (intent.login) {
-    return `Bạn có thể sử dụng mục “Đăng nhập BCH / Admin” trên trang chủ để vào khu vực quản lý, với tài khoản đã được cấp quyền phù hợp.`;
-  }
-
-  if (intent.dashboard) {
-    if (mode === "admin") {
-      return `Bạn đang ở khu vực Dashboard quản trị.
-
-Các nhóm chức năng chính gồm:
-• Thành viên
-• Thông báo
-• Hoạt động
-• Tài liệu
-• Thư viện
-• Một số chức năng quản trị khác`;
-    }
-
-    return `Dashboard là khu vực quản lý dành cho Ban Chấp hành hoặc người dùng được cấp quyền phù hợp. Bạn cần đăng nhập để sử dụng chức năng quản trị.`;
-  }
-
-  if (intent.onlyoffice) {
-    return `Website có tích hợp OnlyOffice để hỗ trợ xem, soạn thảo và chỉnh sửa tài liệu trực tuyến trong một số luồng tài liệu.`;
-  }
-
-  if (intent.usageGuide) {
-    return `Bạn có thể dùng website theo cách đơn giản:
-1. Trang chủ: xem thông tin tổng quan.
-2. Hoạt động: xem hoạt động/sự kiện.
-3. Thông báo: xem tin và thông báo.
-4. Tài liệu: xem tài liệu, văn bản.
-5. Thư viện: xem hình ảnh.
-6. Đăng nhập BCH / Admin: vào khu vực quản lý nếu có quyền.`;
-  }
-
-  if (intent.aiHelp) {
-    return `Mình có thể hỗ trợ bạn về website, BCH, chức năng các mục, hướng dẫn sử dụng, thông báo, hoạt động, tài liệu, thư viện, OnlyOffice và một số dữ liệu của hệ thống.`;
-  }
-
-  if (intent.security) {
-    return `Website có cơ chế đăng nhập và phân quyền cho khu vực quản trị. Trợ lý AI không cung cấp mật khẩu, secret key hoặc hướng dẫn vượt qua phân quyền.`;
-  }
-
-  // Một số câu ngắn nhưng rất rõ nghĩa.
-  if (q === "bch") {
-    return `BCH Chi đoàn D-K66 hiện gồm Nguyễn Thị Huyền (Bí thư), Đinh Anh Bảo (Phó Bí thư) và Đỗ Ngọc Châu (Uỷ viên).`;
-  }
-
-  if (q === "bi thu") {
-    return `Bí thư BCH Chi đoàn D-K66 là Đ/c Nguyễn Thị Huyền.`;
-  }
-
-  if (q === "pho bi thu") {
-    return `Phó Bí thư BCH Chi đoàn D-K66 là Đ/c: Đinh Anh Bảo.`;
-  }
-
-  if (q === "ai tao web") {
-    return `Website được P. Bí thư BCH Đinh Anh Bảo sáng lập và trực tiếp xây dựng.`;
+  if (
+    hasAny(q, [
+      "tong so doan vien la bao nhieu",
+      "chi doan co bao nhieu doan vien",
+      "co bao nhieu doan vien",
+    ])
+  ) {
+    return (
+      "Theo thông tin cấu hình hiện tại, " +
+      "Chi đoàn D-K66 có tổng cộng 44 đoàn viên."
+    );
   }
 
   return null;
 }
 
 /* =========================================================
-   SUPABASE READS
+   QUERY CLASSIFICATION
 ========================================================= */
 
-async function getMemberCount() {
-  if (!supabase) return null;
+type QueryTopic =
+  | "member"
+  | "announcement"
+  | "activity"
+  | "document"
+  | "website"
+  | "general";
+
+function classifyQuery(
+  message: string
+): QueryTopic[] {
+  const q =
+    normalize(message);
+
+  const topics: QueryTopic[] = [];
+
+  if (
+    hasAny(q, [
+      "doan vien",
+      "thanh vien",
+      "quan so",
+      "si so",
+      "bao nhieu nguoi",
+      "bao nhieu nam",
+      "bao nhieu nu",
+      "gioi tinh",
+      "thanh vien chi doan",
+    ])
+  ) {
+    topics.push(
+      "member"
+    );
+  }
+
+  if (
+    hasAny(q, [
+      "thong bao",
+      "tin moi",
+      "tin tuc",
+      "thong tin moi",
+      "thong bao moi",
+    ])
+  ) {
+    topics.push(
+      "announcement"
+    );
+  }
+
+  if (
+    hasAny(q, [
+      "hoat dong",
+      "su kien",
+      "chuong trinh",
+      "ke hoach hoat dong",
+    ])
+  ) {
+    topics.push(
+      "activity"
+    );
+  }
+
+  if (
+    hasAny(q, [
+      "tai lieu",
+      "van ban",
+      "file",
+      "cong van",
+      "bien ban",
+      "ke hoach",
+      "onlyoffice",
+    ])
+  ) {
+    topics.push(
+      "document"
+    );
+  }
+
+  if (
+    hasAny(q, [
+      "chi doan",
+      "d k66",
+      "dk66",
+      "bch",
+      "website",
+      "dashboard",
+      "doan truong",
+      "truong thpt ha trung",
+      "bi thu",
+      "pho bi thu",
+    ])
+  ) {
+    topics.push(
+      "website"
+    );
+  }
+
+  if (!topics.length) {
+    topics.push(
+      "general"
+    );
+  }
+
+  return unique(topics);
+}
+
+/* =========================================================
+   SUPABASE — MEMBERS
+========================================================= */
+
+async function getMemberContext() {
+  if (!supabase) {
+    return null;
+  }
 
   try {
-    const result = await supabase
-      .from("members")
-      .select("id", { count: "exact", head: true });
+    const result =
+      await supabase
+        .from("members")
+        .select("*")
+        .limit(100);
 
     if (result.error) {
-      console.error("[AI/Supabase members]", result.error.message);
+      console.error(
+        "[AI members]",
+        result.error.message
+      );
+
       return null;
     }
 
-    return result.count ?? 0;
+    const members =
+      result.data || [];
+
+    if (!members.length) {
+      return `
+DỮ LIỆU ĐOÀN VIÊN:
+Hiện chưa có dữ liệu đoàn viên trong bảng members.
+`;
+    }
+
+    const total =
+      members.length;
+
+    /*
+     * Tự dò các cột giới tính phổ biến.
+     */
+
+    const genderValues =
+      members.map(
+        (member: any) => {
+          return String(
+            member.gender ||
+              member.sex ||
+              member.gioi_tinh ||
+              ""
+          )
+            .toLowerCase()
+            .trim();
+        }
+      );
+
+    const male =
+      genderValues.filter(
+        (gender) =>
+          [
+            "male",
+            "nam",
+            "m",
+          ].includes(
+            gender
+          )
+      ).length;
+
+    const female =
+      genderValues.filter(
+        (gender) =>
+          [
+            "female",
+            "nu",
+            "nữ",
+            "f",
+          ].includes(
+            gender
+          )
+      ).length;
+
+    const sampleMembers =
+      members
+        .slice(0, 30)
+        .map(
+          (
+            member: any,
+            index: number
+          ) => {
+            const name =
+              member.full_name ||
+              member.name ||
+              member.ho_ten ||
+              "Chưa rõ tên";
+
+            const role =
+              member.role ||
+              member.position ||
+              member.chuc_vu ||
+              "";
+
+            return `${index + 1}. ${name}${
+              role
+                ? ` — ${role}`
+                : ""
+            }`;
+          }
+        )
+        .join("\n");
+
+    return `
+DỮ LIỆU ĐOÀN VIÊN TỪ SUPABASE:
+
+Tổng số bản ghi:
+${total}
+
+Số nam phát hiện được:
+${male || "Chưa xác định"}
+
+Số nữ phát hiện được:
+${female || "Chưa xác định"}
+
+Danh sách mẫu:
+${sampleMembers}
+`;
   } catch (error) {
-    console.error("[AI/Supabase members]", error);
+    console.error(
+      "[AI member context]",
+      error
+    );
+
     return null;
   }
 }
 
-async function getLatestAnnouncements() {
-  if (!supabase) return [];
-
-  try {
-    const result = await supabase
-      .from("announcements")
-      .select("id,title,content,author,created_at")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (result.error) {
-      console.error("[AI/Supabase announcements]", result.error.message);
-      return [];
-    }
-
-    return result.data ?? [];
-  } catch (error) {
-    console.error("[AI/Supabase announcements]", error);
-    return [];
-  }
-}
-
-async function getLatestActivities() {
-  if (!supabase) return [];
-
-  try {
-    const result = await supabase
-      .from("activities")
-      .select(
-        "id,title,description,location,start_at,end_at,status,created_at"
-      )
-      .order("start_at", { ascending: false })
-      .limit(5);
-
-    if (result.error) {
-      console.error("[AI/Supabase activities]", result.error.message);
-      return [];
-    }
-
-    return result.data ?? [];
-  } catch (error) {
-    console.error("[AI/Supabase activities]", error);
-    return [];
-  }
-}
-
-async function getLatestDocuments() {
-  if (!supabase) return [];
-
-  try {
-    const result = await supabase
-      .from("documents")
-      .select("id,title,description,category,file_name,author,created_at")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (result.error) {
-      console.error("[AI/Supabase documents]", result.error.message);
-      return [];
-    }
-
-    return result.data ?? [];
-  } catch (error) {
-    console.error("[AI/Supabase documents]", error);
-    return [];
-  }
-}
-
 /* =========================================================
-   DATABASE ANSWERS
+   SUPABASE — ANNOUNCEMENTS
 ========================================================= */
 
-async function getDatabaseAnswer(message: string) {
-  const intent = getIntent(message);
-
-  if (intent.memberCount) {
-    const count = await getMemberCount();
-    if (count === null) {
-      return `Hiện tại mình chưa đọc được số lượng thành viên từ cơ sở dữ liệu.`;
-    }
-    return `Theo dữ liệu hiện tại trong hệ thống, có ${count} thành viên/đoàn viên trong danh sách quản lý.`;
+async function getAnnouncementContext() {
+  if (!supabase) {
+    return null;
   }
 
-  if (intent.maleCount) {
-    // Knowledge hiện có số liệu tĩnh; không giả định cột giới tính của DB khi chưa biết schema.
-    return `Theo thông tin hiện được cấu hình cho website: có 26 đoàn viên nam.`;
-  }
+  try {
+    const result =
+      await supabase
+        .from("announcements")
+        .select("*")
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
+        .limit(10);
 
-  if (intent.femaleCount) {
-    return `Theo thông tin hiện được cấu hình cho website: có 18 đoàn viên nữ.`;
-  }
-
-  if (intent.latestAnnouncement) {
-    const announcements = await getLatestAnnouncements();
-    if (!announcements.length) {
-      return `Hiện tại mình chưa lấy được dữ liệu thông báo từ hệ thống.`;
-    }
-
-    const latest = announcements[0];
-    return `Thông báo mới nhất hiện tại là:
-
-“${latest.title}”
-
-${latest.content || "Chưa có nội dung."}
-
-Người đăng: ${latest.author || "Chưa xác định"}
-Ngày đăng: ${latest.created_at ? new Date(latest.created_at).toLocaleDateString("vi-VN") : "Chưa xác định"}`;
-  }
-
-  if (intent.latestActivity) {
-    const activities = await getLatestActivities();
-    if (!activities.length) {
-      return `Hiện tại mình chưa lấy được dữ liệu hoạt động từ hệ thống.`;
-    }
-
-    const latest = activities[0];
-    return `Hoạt động gần nhất trong dữ liệu hệ thống là:
-
-“${latest.title}”
-
-${latest.description || "Chưa có mô tả."}
-
-Địa điểm: ${latest.location || "Chưa cập nhật"}
-Thời gian: ${latest.start_at ? new Date(latest.start_at).toLocaleString("vi-VN") : "Chưa cập nhật"}
-Trạng thái: ${latest.status || "Chưa cập nhật"}`;
-  }
-
-  if (intent.latestDocument) {
-    const documents = await getLatestDocuments();
-    if (!documents.length) {
-      return `Hiện tại mình chưa lấy được dữ liệu tài liệu từ hệ thống.`;
-    }
-
-    const latest = documents[0];
-    return `Tài liệu mới nhất hiện tại là:
-
-“${latest.title}”
-
-Loại: ${latest.category || "Chưa xác định"}
-Tên file: ${latest.file_name || "Chưa xác định"}
-Người đăng: ${latest.author || "Chưa xác định"}
-Ngày đăng: ${latest.created_at ? new Date(latest.created_at).toLocaleDateString("vi-VN") : "Chưa xác định"}`;
-  }
-
-  return null;
-}
-
-/* =========================================================
-   GEMINI
-========================================================= */
-
-function isRateLimitError(errorText: string) {
-  return /429|quota|rate.?limit|too many requests|resource exhausted|exceeded/i.test(
-    errorText
-  );
-}
-
-function isRetryableError(errorText: string) {
-  return /503|502|500|timeout|timed out|temporar|network|fetch failed|overloaded/i.test(
-    errorText
-  );
-}
-
-function getRetryAfterMs(errorText: string) {
-  const seconds = errorText.match(/retry in\s+([\d.]+)s/i)?.[1];
-  if (!seconds) return 120_000;
-  return Math.round(Number(seconds) * 1000);
-}
-
-async function callGemini(prompt: string) {
-  if (!ai) return null;
-
-  const state = getGeminiState();
-  if (state) return null;
-
-  const maxAttempts = 2;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      const interaction = await ai.interactions.create({
-        model: GEMINI_MODEL,
-        input: prompt,
-      });
-
-      const answer = interaction.output_text?.trim();
-      if (answer) return answer;
-      return null;
-    } catch (error) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      console.error(`[AI/Gemini] attempt ${attempt}:`, errorText);
-
-      if (isRateLimitError(errorText)) {
-        const retryAfter = getRetryAfterMs(errorText);
-        setGeminiCooldown(retryAfter, "rate_limit");
-        return null;
-      }
-
-      if (!isRetryableError(errorText) || attempt === maxAttempts) {
-        return null;
-      }
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, attempt === 1 ? 700 : 1400)
+    if (result.error) {
+      console.error(
+        "[AI announcements]",
+        result.error.message
       );
+
+      return null;
+    }
+
+    const announcements =
+      result.data || [];
+
+    if (
+      !announcements.length
+    ) {
+      return `
+DỮ LIỆU THÔNG BÁO:
+Hiện chưa có thông báo.
+`;
+    }
+
+    const text =
+      announcements
+        .map(
+          (
+            item: any,
+            index: number
+          ) => {
+            return `
+THÔNG BÁO ${index + 1}
+
+Tiêu đề:
+${
+  item.title ||
+  "Không có tiêu đề"
+}
+
+Nội dung:
+${truncate(
+  item.content ||
+    item.description ||
+    "",
+  1500
+)}
+
+Người đăng:
+${
+  item.author ||
+  "Chưa xác định"
+}
+
+Ngày:
+${
+  item.created_at ||
+  "Chưa xác định"
+}
+`;
+          }
+        )
+        .join(
+          "\n---\n"
+        );
+
+    return `
+DỮ LIỆU THÔNG BÁO MỚI NHẤT:
+
+${text}
+`;
+  } catch (error) {
+    console.error(
+      "[AI announcement context]",
+      error
+    );
+
+    return null;
+  }
+}
+
+/* =========================================================
+   SUPABASE — ACTIVITIES
+========================================================= */
+
+async function getActivityContext() {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const result =
+      await supabase
+        .from("activities")
+        .select("*")
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
+        .limit(10);
+
+    if (result.error) {
+      console.error(
+        "[AI activities]",
+        result.error.message
+      );
+
+      return null;
+    }
+
+    const activities =
+      result.data || [];
+
+    if (
+      !activities.length
+    ) {
+      return `
+DỮ LIỆU HOẠT ĐỘNG:
+Hiện chưa có hoạt động.
+`;
+    }
+
+    const text =
+      activities
+        .map(
+          (
+            item: any,
+            index: number
+          ) => {
+            return `
+HOẠT ĐỘNG ${index + 1}
+
+Tên:
+${
+  item.title ||
+  "Chưa có tên"
+}
+
+Mô tả:
+${truncate(
+  item.description ||
+    item.content ||
+    "",
+  1500
+)}
+
+Địa điểm:
+${
+  item.location ||
+  "Chưa cập nhật"
+}
+
+Thời gian bắt đầu:
+${
+  item.start_at ||
+  "Chưa cập nhật"
+}
+
+Thời gian kết thúc:
+${
+  item.end_at ||
+  "Chưa cập nhật"
+}
+
+Trạng thái:
+${
+  item.status ||
+  "Chưa cập nhật"
+}
+`;
+          }
+        )
+        .join(
+          "\n---\n"
+        );
+
+    return `
+DỮ LIỆU HOẠT ĐỘNG:
+
+${text}
+`;
+  } catch (error) {
+    console.error(
+      "[AI activity context]",
+      error
+    );
+
+    return null;
+  }
+}
+
+/* =========================================================
+   SUPABASE — DOCUMENTS
+========================================================= */
+
+async function getDocumentContext() {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const result =
+      await supabase
+        .from("documents")
+        .select("*")
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
+        .limit(10);
+
+    if (result.error) {
+      console.error(
+        "[AI documents]",
+        result.error.message
+      );
+
+      return null;
+    }
+
+    const documents =
+      result.data || [];
+
+    if (
+      !documents.length
+    ) {
+      return `
+DỮ LIỆU TÀI LIỆU:
+Hiện chưa có tài liệu.
+`;
+    }
+
+    const text =
+      documents
+        .map(
+          (
+            item: any,
+            index: number
+          ) => {
+            return `
+TÀI LIỆU ${index + 1}
+
+Tên:
+${
+  item.title ||
+  "Chưa có tên"
+}
+
+Mô tả:
+${truncate(
+  item.description ||
+    "",
+  1000
+)}
+
+Loại:
+${
+  item.category ||
+  "Chưa xác định"
+}
+
+Tên file:
+${
+  item.file_name ||
+  "Chưa xác định"
+}
+
+Người đăng:
+${
+  item.author ||
+  "Chưa xác định"
+}
+
+Ngày:
+${
+  item.created_at ||
+  "Chưa xác định"
+}
+`;
+          }
+        )
+        .join(
+          "\n---\n"
+        );
+
+    return `
+DỮ LIỆU TÀI LIỆU:
+
+${text}
+`;
+  } catch (error) {
+    console.error(
+      "[AI document context]",
+      error
+    );
+
+    return null;
+  }
+}
+
+/* =========================================================
+   BUILD DATABASE CONTEXT
+========================================================= */
+
+async function getRelevantDatabaseContext(
+  message: string
+): Promise<DatabaseContext> {
+  const topics =
+    classifyQuery(
+      message
+    );
+
+  const context:
+    DatabaseContext = {};
+
+  const tasks:
+    Promise<void>[] = [];
+
+  if (
+    topics.includes(
+      "member"
+    )
+  ) {
+    tasks.push(
+      getMemberContext().then(
+        (value) => {
+          if (value) {
+            context.members =
+              value;
+          }
+        }
+      )
+    );
+  }
+
+  if (
+    topics.includes(
+      "announcement"
+    )
+  ) {
+    tasks.push(
+      getAnnouncementContext().then(
+        (value) => {
+          if (value) {
+            context.announcements =
+              value;
+          }
+        }
+      )
+    );
+  }
+
+  if (
+    topics.includes(
+      "activity"
+    )
+  ) {
+    tasks.push(
+      getActivityContext().then(
+        (value) => {
+          if (value) {
+            context.activities =
+              value;
+          }
+        }
+      )
+    );
+  }
+
+  if (
+    topics.includes(
+      "document"
+    )
+  ) {
+    tasks.push(
+      getDocumentContext().then(
+        (value) => {
+          if (value) {
+            context.documents =
+              value;
+          }
+        }
+      )
+    );
+  }
+
+  /*
+   * Nếu là câu hỏi website tổng quát,
+   * không cần query DB để giảm latency.
+   */
+
+  await Promise.all(
+    tasks
+  );
+
+  return context;
+}
+
+function serializeDatabaseContext(
+  context: DatabaseContext
+) {
+  const values = [
+    context.members,
+    context.announcements,
+    context.activities,
+    context.documents,
+  ].filter(Boolean);
+
+  if (!values.length) {
+    return `
+Không có dữ liệu động nào được tải cho câu hỏi này.
+`;
+  }
+
+  return values.join(
+    "\n\n"
+  );
+}
+
+/* =========================================================
+   CONVERSATION HISTORY
+========================================================= */
+
+function sanitizeHistory(
+  history: ChatMessage[]
+) {
+  return history
+    .slice(
+      -MAX_HISTORY_MESSAGES
+    )
+    .map(
+      (item) => ({
+        role: item.role,
+        content:
+          cleanText(
+            item.content
+          ).slice(
+            0,
+            MAX_HISTORY_ITEM_LENGTH
+          ),
+      })
+    )
+    .filter(
+      (item) =>
+        item.content.length >
+        0
+    );
+}
+
+function formatHistory(
+  history: ChatMessage[]
+) {
+  if (!history.length) {
+    return "Chưa có lịch sử hội thoại.";
+  }
+
+  return history
+    .map((item) => {
+      const role =
+        item.role === "user"
+          ? "NGƯỜI DÙNG"
+          : "TRỢ LÝ";
+
+      return `${role}: ${item.content}`;
+    })
+    .join(
+      "\n\n"
+    );
+}
+
+/* =========================================================
+   ERROR DETECTION
+========================================================= */
+
+function getErrorText(
+  error: unknown
+) {
+  if (
+    error instanceof Error
+  ) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isRateLimitError(
+  errorText: string
+) {
+  return /429|quota|rate.?limit|resource exhausted|too many requests/i.test(
+    errorText
+  );
+}
+
+function isRetryableError(
+  errorText: string
+) {
+  return /500|502|503|504|timeout|timed out|temporar|network|fetch failed|overloaded/i.test(
+    errorText
+  );
+}
+
+function getRetryAfterMs(
+  errorText: string
+) {
+  const match =
+    errorText.match(
+      /retry in\s+([\d.]+)\s*s/i
+    );
+
+  if (!match?.[1]) {
+    return 60_000;
+  }
+
+  const seconds =
+    Number(match[1]);
+
+  if (
+    !Number.isFinite(
+      seconds
+    )
+  ) {
+    return 60_000;
+  }
+
+  return Math.round(
+    seconds * 1000
+  );
+}
+
+
+function classifyGeminiFailure(
+  errorText: string
+): GeminiFailureReason {
+  if (
+    /404|not[_\s-]?found|model.*not.*found/i.test(
+      errorText
+    )
+  ) {
+    return "model_not_found";
+  }
+
+  if (
+    /quota[_\s-]?exceeded|daily quota|per day|requests per day|rpd/i.test(
+      errorText
+    )
+  ) {
+    return "quota_exceeded";
+  }
+
+  if (
+    isRateLimitError(
+      errorText
+    )
+  ) {
+    return "rate_limit";
+  }
+
+  if (
+    /503|service.?unavailable|overloaded|temporar.*unavailable/i.test(
+      errorText
+    )
+  ) {
+    return "service_unavailable";
+  }
+
+  if (
+    /504|deadline.?exceeded|timeout|timed out/i.test(
+      errorText
+    )
+  ) {
+    return "timeout";
+  }
+
+  if (
+    /network|fetch failed|econn|enotfound|socket/i.test(
+      errorText
+    )
+  ) {
+    return "network";
+  }
+
+  return "unknown";
+}
+
+function getGeminiErrorMessage(
+  reason: GeminiFailureReason,
+  retryAfterMs?: number
+) {
+  const retrySeconds =
+    retryAfterMs
+      ? Math.max(
+          1,
+          Math.ceil(
+            retryAfterMs /
+              1000
+          )
+        )
+      : null;
+
+  switch (reason) {
+    case "missing_api_key":
+      return "Hệ thống AI chưa được cấu hình khóa Gemini trên máy chủ.";
+
+    case "quota_exceeded":
+      return "AI đã đạt hạn mức sử dụng hiện tại của dự án Gemini. Các thiết bị dùng chung website sẽ cùng bị ảnh hưởng cho đến khi hạn mức được khôi phục hoặc dự án được nâng cấp quota/Paid Tier.";
+
+    case "rate_limit":
+      return retrySeconds
+        ? `Gemini đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau khoảng ${retrySeconds} giây.`
+        : "Gemini đang giới hạn tần suất yêu cầu. Vui lòng chờ một chút rồi thử lại.";
+
+    case "service_unavailable":
+      return "Dịch vụ Gemini hiện đang quá tải hoặc tạm thời không khả dụng. Hệ thống đã thử lại nhưng chưa thành công.";
+
+    case "timeout":
+      return "Gemini mất quá nhiều thời gian để xử lý yêu cầu. Hãy thử gửi câu hỏi ngắn hơn hoặc thử lại sau.";
+
+    case "network":
+      return "Máy chủ website tạm thời không kết nối được tới Gemini. Vui lòng thử lại sau.";
+
+    case "model_not_found":
+      return "Mô hình Gemini đang cấu hình hiện không khả dụng. Quản trị viên cần kiểm tra biến GEMINI_MODEL.";
+
+    default:
+      return "Gemini gặp lỗi không xác định. Vui lòng thử lại sau ít phút.";
+  }
+}
+
+/* =========================================================
+   GEMINI CALL
+========================================================= */
+
+async function callGemini(
+  prompt: string
+): Promise<GeminiCallResult> {
+  if (!ai) {
+    console.error(
+      "[AI] GEMINI_API_KEY chưa được cấu hình"
+    );
+
+    return {
+      ok: false,
+      reason: "missing_api_key",
+    };
+  }
+
+  const health =
+    getGeminiHealth();
+
+  if (health) {
+    console.warn(
+      "[AI] Gemini đang cooldown:",
+      health.reason
+    );
+
+    return {
+      ok: false,
+      reason:
+        health.reason ===
+        "quota_exceeded"
+          ? "quota_exceeded"
+          : "rate_limit",
+      retryAfterMs:
+        Math.max(
+          0,
+          health.unavailableUntil -
+            Date.now()
+        ),
+    };
+  }
+
+  let lastFailure:
+    GeminiCallResult = {
+      ok: false,
+      reason: "unknown",
+    };
+
+  for (
+    const model of GEMINI_MODELS
+  ) {
+    let attempt = 0;
+
+    while (
+      attempt <=
+      GEMINI_RETRY_DELAYS.length
+    ) {
+      try {
+        const interaction =
+          await ai.interactions.create({
+            model,
+            input: prompt,
+          });
+
+        const answer =
+          interaction.output_text?.trim();
+
+        if (answer) {
+          return {
+            ok: true,
+            answer,
+            model,
+          };
+        }
+
+        lastFailure = {
+          ok: false,
+          reason: "unknown",
+          detail:
+            "Gemini trả về phản hồi rỗng.",
+        };
+
+        break;
+      } catch (error) {
+        const errorText =
+          getErrorText(
+            error
+          );
+
+        const reason =
+          classifyGeminiFailure(
+            errorText
+          );
+
+        const retryAfterMs =
+          isRateLimitError(
+            errorText
+          )
+            ? getRetryAfterMs(
+                errorText
+              )
+            : undefined;
+
+        console.error(
+          `[AI Gemini model ${model} attempt ${attempt + 1}]`,
+          errorText
+        );
+
+        lastFailure = {
+          ok: false,
+          reason,
+          retryAfterMs,
+          detail:
+            truncate(
+              errorText,
+              500
+            ),
+        };
+
+        /*
+         * 404 model:
+         * Không retry cùng model.
+         * Chuyển sang model dự phòng.
+         */
+        if (
+          reason ===
+          "model_not_found"
+        ) {
+          break;
+        }
+
+        /*
+         * Daily/project quota:
+         * Retry không giúp ích.
+         */
+        if (
+          reason ===
+          "quota_exceeded"
+        ) {
+          setGeminiCooldown(
+            GEMINI_COOLDOWN_MAX,
+            "quota_exceeded"
+          );
+
+          return lastFailure;
+        }
+
+        /*
+         * Rate limit:
+         * Chỉ retry ngay nếu Google yêu cầu chờ rất ngắn.
+         * Nếu phải chờ lâu, trả lỗi rõ ràng để tránh treo request.
+         */
+        if (
+          reason ===
+          "rate_limit"
+        ) {
+          const waitMs =
+            retryAfterMs ??
+            60_000;
+
+          if (
+            waitMs >
+            GEMINI_SHORT_RETRY_MAX_MS
+          ) {
+            setGeminiCooldown(
+              waitMs,
+              "rate_limit"
+            );
+
+            return lastFailure;
+          }
+        }
+
+        /*
+         * Các lỗi không nên retry.
+         */
+        if (
+          ![
+            "rate_limit",
+            "service_unavailable",
+            "timeout",
+            "network",
+          ].includes(reason)
+        ) {
+          break;
+        }
+
+        if (
+          attempt >=
+          GEMINI_RETRY_DELAYS.length
+        ) {
+          break;
+        }
+
+        const baseDelay =
+          GEMINI_RETRY_DELAYS[
+            attempt
+          ] ??
+          1000;
+
+        const delay =
+          reason ===
+            "rate_limit" &&
+          retryAfterMs
+            ? Math.min(
+                retryAfterMs,
+                GEMINI_SHORT_RETRY_MAX_MS
+              )
+            : baseDelay;
+
+        await new Promise(
+          (resolve) =>
+            setTimeout(
+              resolve,
+              delay
+            )
+        );
+
+        attempt += 1;
+        continue;
+      }
     }
   }
 
-  return null;
+  return lastFailure;
 }
 
-async function askGemini({
+/* =========================================================
+   BUILD AI PROMPT
+========================================================= */
+
+function buildPrompt({
+  message,
+  history,
+  page,
+  mode,
+  databaseContext,
+}: {
+  message: string;
+  history: ChatMessage[];
+  page: string;
+  mode: AIMode;
+  databaseContext: DatabaseContext;
+}) {
+  const modeInstruction =
+    mode === "admin"
+      ? `
+CHẾ ĐỘ HIỆN TẠI:
+Admin/BCH.
+
+Người dùng có thể được hướng dẫn sâu hơn về Dashboard và quản trị.
+Tuy nhiên vẫn phải tôn trọng bảo mật và phân quyền.
+`
+      : `
+CHẾ ĐỘ HIỆN TẠI:
+Khách truy cập công khai.
+
+Không giả định người dùng có quyền quản trị.
+`;
+
+  return `
+${SYSTEM_INSTRUCTION}
+
+==================================================
+
+THÔNG TIN CHÍNH THỨC WEBSITE
+
+${WEBSITE_KNOWLEDGE}
+
+==================================================
+
+${getPageContext(
+  page
+)}
+
+==================================================
+
+${modeInstruction}
+
+==================================================
+
+DỮ LIỆU ĐỘNG TỪ HỆ THỐNG
+
+${serializeDatabaseContext(
+  databaseContext
+)}
+
+==================================================
+
+LỊCH SỬ HỘI THOẠI
+
+${formatHistory(
+  history
+)}
+
+==================================================
+
+CÂU HỎI MỚI CỦA NGƯỜI DÙNG
+
+${message}
+
+==================================================
+
+HƯỚNG DẪN TRẢ LỜI CUỐI CÙNG
+
+Hãy trả lời trực tiếp câu hỏi mới nhất.
+
+Nếu câu hỏi liên quan dữ liệu Chi đoàn:
+- Ưu tiên dữ liệu động được cung cấp.
+- Sau đó dùng thông tin chính thức.
+
+Nếu câu hỏi không liên quan website:
+- Trả lời như một AI tổng quát thông minh.
+- Không từ chối chỉ vì nó ngoài phạm vi Chi đoàn.
+
+Nếu người dùng đang hỏi tiếp vấn đề trước đó:
+- Sử dụng lịch sử hội thoại.
+
+Nếu không chắc chắn về dữ liệu nội bộ:
+- Nói rõ mức độ không chắc chắn.
+- Không bịa.
+
+Trả lời tự nhiên, hữu ích và thông minh.
+`;
+}
+
+/* =========================================================
+   AI REQUEST
+========================================================= */
+
+async function askAI({
   message,
   history,
   page,
@@ -972,160 +2306,549 @@ async function askGemini({
   page: string;
   mode: AIMode;
 }) {
-  const state = getGeminiState();
-  if (!ai || state) return null;
+  /*
+   * Chỉ query đúng dữ liệu liên quan.
+   * Các query chạy song song.
+   */
 
-  const roleInstruction =
-    mode === "admin"
-      ? `Bạn đang hỗ trợ Ban Chấp hành/người quản trị. Có thể giải thích sâu về Dashboard và thao tác quản lý ở mức hợp lệ. Không hướng dẫn vượt quyền.`
-      : `Bạn đang hỗ trợ khách truy cập. Ưu tiên hướng dẫn các chức năng công khai và thông tin của website.`;
+  const databaseContext =
+    await getRelevantDatabaseContext(
+      message
+    );
 
-  const historyText = history
-    .slice(-8)
-    .map((item) => {
-      const role = item.role === "user" ? "Người dùng" : "Trợ lý";
-      return `${role}: ${item.content.trim().slice(0, 900)}`;
-    })
-    .join("\n");
-
-  const prompt = `
-${WEBSITE_KNOWLEDGE}
-
-${getPageKnowledge(page)}
-
-${roleInstruction}
-
-LỊCH SỬ GẦN NHẤT:
-${historyText || "Chưa có lịch sử."}
-
-CÂU HỎI HIỆN TẠI:
-${message.slice(0, 2500)}
-
-YÊU CẦU:
-- Trả lời bằng tiếng Việt.
-- Hiểu cách hỏi tự nhiên, thiếu dấu, viết tắt hoặc sai chính tả nhẹ.
-- Không yêu cầu người dùng phải dùng một mẫu câu cố định.
-- Trả lời trực tiếp, thân thiện và vừa đủ chi tiết.
-- Với thông tin đã có trong WEBSITE_KNOWLEDGE, phải ưu tiên đúng thông tin đó.
-- Không được bịa dữ liệu website, tên người, số liệu, thông báo, hoạt động hoặc tài liệu.
-- Khi câu hỏi cần dữ liệu động nhưng không có dữ liệu được cung cấp, nói rõ điều đó.
-- Không tiết lộ API key, secret key, token, mật khẩu hay cấu hình bảo mật.
-- Không hướng dẫn vượt qua đăng nhập/phân quyền.
-- Không tự nhận đã thực hiện hành động mà hệ thống chưa thực hiện.
-`;
-
-  return callGemini(prompt);
-}
-
-/* =========================================================
-   INTELLIGENT FALLBACK
-========================================================= */
-
-function getIntelligentFallback(message: string, mode: AIMode) {
-  const q = normalize(message);
-
-  // Thử lại direct answer một lần cuối để không trả về thông báo lỗi chung.
-  const direct = getDirectAnswer(message, mode);
-  if (direct) return direct;
-
-  if (hasAny(q, ["website", "web", "chi doan"])) {
-    return `Mình chưa thể xử lý câu hỏi này bằng AI nâng cao lúc này, nhưng mình vẫn có thể hỗ trợ các thông tin về Chi đoàn D-K66, BCH, chức năng website, Tài liệu, Hoạt động, Thông báo, Thư viện và Dashboard.`;
-  }
-
-  return `Mình chưa có đủ dữ liệu để trả lời chính xác câu hỏi này. Bạn có thể hỏi mình về Chi đoàn D-K66, BCH, website, Hoạt động, Thông báo, Tài liệu, Thư viện hoặc cách sử dụng Dashboard.`;
-}
-
-/* =========================================================
-   POST
-========================================================= */
-
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as AIRequest;
-
-    const message =
-      typeof body.message === "string" ? body.message.trim() : "";
-
-    const page = typeof body.page === "string" ? body.page : "/";
-    const mode: AIMode = body.mode === "admin" ? "admin" : "public";
-
-    const history: ChatMessage[] = Array.isArray(body.history)
-      ? body.history.filter(
-          (item): item is ChatMessage =>
-            !!item &&
-            typeof item === "object" &&
-            "role" in item &&
-            "content" in item &&
-            ((item as ChatMessage).role === "user" ||
-              (item as ChatMessage).role === "assistant") &&
-            typeof (item as ChatMessage).content === "string"
-        )
-      : [];
-
-    if (!message) {
-      return NextResponse.json(
-        { error: "Tin nhắn không được để trống." },
-        { status: 400 }
-      );
-    }
-
-    const normalizedMessage = normalize(message);
-    const cacheKey = `${mode}|${normalizedMessage}`;
-
-    const cached = getCache(cacheKey);
-    if (cached) {
-      return NextResponse.json({ message: cached, source: "cache" });
-    }
-
-    /* 1. Trả lời từ knowledge nội bộ */
-    const directAnswer = getDirectAnswer(message, mode);
-    if (directAnswer) {
-      setCache(cacheKey, directAnswer);
-      return NextResponse.json({ message: directAnswer, source: "internal" });
-    }
-
-    /* 2. Trả lời dữ liệu thực từ Supabase/knowledge số liệu */
-    const databaseAnswer = await getDatabaseAnswer(message);
-    if (databaseAnswer) {
-      setCache(cacheKey, databaseAnswer, DATABASE_CACHE_TTL);
-      return NextResponse.json({
-        message: databaseAnswer,
-        source: "supabase",
-      });
-    }
-
-    /* 3. Gemini chỉ dành cho câu hỏi mở */
-    const geminiAnswer = await askGemini({
+  const prompt =
+    buildPrompt({
       message,
       history,
       page,
       mode,
+      databaseContext,
     });
 
-    if (geminiAnswer) {
-      setCache(cacheKey, geminiAnswer, GEMINI_CACHE_TTL);
+  return callGemini(
+    prompt
+  );
+}
+
+/* =========================================================
+   LOCAL FALLBACK
+========================================================= */
+
+function getLocalFallback(
+  message: string
+) {
+  const q =
+    normalize(message);
+
+  /*
+   * Chỉ fallback cho các thông tin cực kỳ chắc chắn.
+   * Không biến fallback thành chatbot keyword lớn.
+   */
+
+  if (
+    hasAny(q, [
+      "bi thu chi doan",
+      "bi thu bch",
+      "ai la bi thu",
+    ])
+  ) {
+    return `Bí thư BCH Chi đoàn D-K66 là Đ/c Nguyễn Thị Huyền.`;
+  }
+
+  if (
+    hasAny(q, [
+      "pho bi thu",
+      "ai la pho bi thu",
+    ])
+  ) {
+    return `Phó Bí thư BCH Chi đoàn D-K66 là Đ/c Đinh Anh Bảo.`;
+  }
+
+  if (
+    hasAny(q, [
+      "uy vien bch",
+      "uy vien ban chap hanh",
+    ])
+  ) {
+    return `Uỷ viên BCH Chi đoàn D-K66 là Đ/c Đỗ Ngọc Châu.`;
+  }
+
+  if (
+    hasAny(q, [
+      "bch gom ai",
+      "ban chap hanh gom ai",
+      "danh sach bch",
+    ])
+  ) {
+    return `Ban Chấp hành Chi đoàn D-K66 hiện gồm:
+
+• Bí thư: Nguyễn Thị Huyền
+• Phó Bí thư: Đinh Anh Bảo
+• Uỷ viên BCH: Đỗ Ngọc Châu`;
+  }
+
+  if (
+    hasAny(q, [
+      "ai tao website",
+      "ai lam website",
+      "ai xay dung website",
+      "nguoi sang lap website",
+    ])
+  ) {
+    return `Website Chi đoàn D-K66 được Đinh Anh Bảo sáng lập và trực tiếp xây dựng.`;
+  }
+
+  if (
+    hasAny(q, [
+      "website nay la gi",
+      "website dung de lam gi",
+    ])
+  ) {
+    return `Đây là website của Chi đoàn D-K66 – Trường THPT Hà Trung, được xây dựng để giới thiệu, lưu giữ thông tin và kỷ niệm, quản lý đoàn viên, hoạt động, thông báo, tài liệu, thư viện hình ảnh và hỗ trợ công việc của Ban Chấp hành.`;
+  }
+
+  return null;
+}
+
+/* =========================================================
+   VALIDATE REQUEST
+========================================================= */
+
+function parseRequestBody(
+  body: AIRequest
+) {
+  const message =
+    typeof body.message ===
+    "string"
+      ? body.message.trim()
+      : "";
+
+  const page =
+    typeof body.page ===
+    "string"
+      ? body.page
+      : "/";
+
+  const mode: AIMode =
+    body.mode === "admin"
+      ? "admin"
+      : "public";
+
+  const rawHistory =
+    Array.isArray(
+      body.history
+    )
+      ? body.history
+      : [];
+
+  const history:
+    ChatMessage[] =
+    rawHistory.filter(
+      (
+        item
+      ): item is ChatMessage => {
+        if (
+          !item ||
+          typeof item !==
+            "object"
+        ) {
+          return false;
+        }
+
+        const value =
+          item as Partial<ChatMessage>;
+
+        return (
+          (
+            value.role ===
+              "user" ||
+            value.role ===
+              "assistant"
+          ) &&
+          typeof value.content ===
+            "string"
+        );
+      }
+    );
+
+  return {
+    message,
+    page,
+    mode,
+    history:
+      sanitizeHistory(
+        history
+      ),
+  };
+}
+
+/* =========================================================
+   POST API
+========================================================= */
+
+export async function POST(
+  request: Request
+) {
+  try {
+    clearExpiredCache();
+    clearExpiredRateLimits();
+
+    const body =
+      (await request.json()) as AIRequest;
+
+    const {
+      message,
+      page,
+      mode,
+      history,
+    } =
+      parseRequestBody(
+        body
+      );
+
+    /*
+     * Validation
+     */
+
+    if (!message) {
+      return NextResponse.json(
+        {
+          error:
+            "Tin nhắn không được để trống.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (
+      message.length >
+      MAX_MESSAGE_LENGTH
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `Tin nhắn quá dài. Giới hạn hiện tại là ${MAX_MESSAGE_LENGTH} ký tự.`,
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * CACHE
+     * =====================================================
+     */
+
+    const cacheKey =
+      createCacheKey(
+        message,
+        mode
+      );
+
+    const cached =
+      getCache(
+        cacheKey
+      );
+
+    if (cached) {
+      console.log(
+        "[AI] CACHE HIT:",
+        message
+      );
+
       return NextResponse.json({
-        message: geminiAnswer,
-        source: "gemini",
+        message: cached,
+        source: "cache",
       });
     }
 
-    /* 4. Gemini lỗi/quota nhưng hệ thống vẫn phải trả lời hữu ích */
-    const fallback = getIntelligentFallback(message, mode);
-    return NextResponse.json({
-      message: fallback,
-      source: "fallback",
-    });
-  } catch (error) {
-    console.error("[AI API]", error);
+    /*
+     * =====================================================
+     * FAST PATH
+     *
+     * Đây là phần quan trọng.
+     *
+     * Câu hỏi chắc chắn về website sẽ:
+     *
+     * POST
+     *   ↓
+     * CACHE
+     *   ↓
+     * FAST PATH
+     *   ↓
+     * RETURN
+     *
+     * Không query Supabase.
+     * Không gọi Gemini.
+     * Không cần build prompt.
+     * =====================================================
+     */
+
+    const fastAnswer =
+      getFastPathAnswer(
+        message
+      );
+
+    if (fastAnswer) {
+      console.log(
+        "[AI] FAST PATH:",
+        message
+      );
+
+      setCache(
+        cacheKey,
+        fastAnswer,
+        CACHE_TTL
+      );
+
+      return NextResponse.json({
+        message:
+          fastAnswer,
+        source:
+          "fast_path",
+      });
+    }
+
+    /*
+     * =====================================================
+     * RATE LIMIT CHỐNG SPAM
+     *
+     * Chỉ áp dụng trước khi gọi Gemini.
+     * Cache và Fast Path không tiêu tốn quota Gemini.
+     * =====================================================
+     */
+
+    const clientIp =
+      getClientIp(
+        request
+      );
+
+    const rateLimit =
+      checkRateLimit(
+        `${mode}:${clientIp}`
+      );
+
+    if (!rateLimit.allowed) {
+      console.warn(
+        "[AI] LOCAL RATE LIMIT:",
+        clientIp
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            `Bạn đang gửi quá nhiều yêu cầu. Vui lòng thử lại sau ${rateLimit.retryAfterSeconds} giây.`,
+          message:
+            `Bạn đang gửi quá nhiều yêu cầu. Vui lòng thử lại sau ${rateLimit.retryAfterSeconds} giây.`,
+          source:
+            "rate_limited",
+          errorCode:
+            "LOCAL_RATE_LIMIT",
+          retryAfterSeconds:
+            rateLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After":
+              String(
+                rateLimit.retryAfterSeconds
+              ),
+          },
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * AI
+     * =====================================================
+     */
+
+    const result =
+      await askAI({
+        message,
+        history,
+        page,
+        mode,
+      });
+
+    if (result.ok) {
+      console.log(
+        "[AI] GEMINI:",
+        message,
+        "MODEL:",
+        result.model
+      );
+
+      setCache(
+        cacheKey,
+        result.answer,
+        GEMINI_CACHE_TTL
+      );
+
+      return NextResponse.json({
+        message:
+          result.answer,
+        source:
+          "ai",
+        model:
+          result.model,
+      });
+    }
+
+    /*
+     * =====================================================
+     * LOCAL FALLBACK
+     *
+     * Nếu Gemini lỗi nhưng câu hỏi thuộc dữ liệu website
+     * mà hệ thống biết chắc chắn, vẫn trả lời được.
+     * =====================================================
+     */
+
+    const localAnswer =
+      getLocalFallback(
+        message
+      );
+
+    if (localAnswer) {
+      console.log(
+        "[AI] LOCAL FALLBACK:",
+        message,
+        "REASON:",
+        result.reason
+      );
+
+      setCache(
+        cacheKey,
+        localAnswer,
+        DATABASE_CACHE_TTL
+      );
+
+      return NextResponse.json({
+        message:
+          localAnswer,
+        source:
+          "local_fallback",
+        aiStatus:
+          result.reason,
+      });
+    }
+
+    /*
+     * =====================================================
+     * PRECISE AI ERROR
+     * =====================================================
+     */
+
+    const errorMessage =
+      getGeminiErrorMessage(
+        result.reason,
+        result.retryAfterMs
+      );
+
+    const retryAfterSeconds =
+      result.retryAfterMs
+        ? Math.max(
+            1,
+            Math.ceil(
+              result.retryAfterMs /
+                1000
+            )
+          )
+        : undefined;
+
+    const status =
+      result.reason ===
+        "rate_limit" ||
+      result.reason ===
+        "quota_exceeded"
+        ? 429
+        : result.reason ===
+            "missing_api_key"
+          ? 503
+          : 200;
 
     return NextResponse.json(
       {
         message:
-          "Mình chưa xử lý được câu hỏi này. Bạn hãy thử hỏi lại theo cách tự nhiên hơn về website Chi đoàn D-K66.",
-        source: "error",
+          errorMessage,
+        error:
+          errorMessage,
+        source:
+          "unavailable",
+        errorCode:
+          result.reason,
+        retryAfterSeconds,
       },
-      { status: 200 }
+      {
+        status,
+        headers:
+          retryAfterSeconds
+            ? {
+                "Retry-After":
+                  String(
+                    retryAfterSeconds
+                  ),
+              }
+            : undefined,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "[AI API ERROR]",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        message:
+          "Đã xảy ra lỗi khi xử lý yêu cầu. Bạn hãy thử gửi lại câu hỏi.",
+        source:
+          "error",
+      },
+      {
+        status: 200,
+      }
     );
   }
+}
+
+/* =========================================================
+   GET HEALTH CHECK
+========================================================= */
+
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    aiConfigured:
+      Boolean(
+        GEMINI_API_KEY
+      ),
+    supabaseConfigured:
+      Boolean(
+        SUPABASE_URL &&
+          SUPABASE_SECRET_KEY
+      ),
+    models:
+      GEMINI_MODELS,
+    geminiCooldown:
+      Boolean(
+        getGeminiHealth()
+      ),
+    cacheSize:
+      responseCache.size,
+    localRateLimit: {
+      maxRequests:
+        AI_RATE_LIMIT_MAX_REQUESTS,
+      windowMs:
+        AI_RATE_LIMIT_WINDOW_MS,
+      activeBuckets:
+        rateLimitBuckets.size,
+    },
+  });
 }
