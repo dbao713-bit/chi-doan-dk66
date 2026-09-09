@@ -216,12 +216,20 @@ export default function ActivitiesPage() {
             <small>TRƯỜNG THPT HÀ TRUNG</small>
           </div>
 
-          <Link
-            href="/admin"
-            className="activities-admin"
-          >
-            BCH / ADMIN
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/portal"
+              className="activities-admin"
+            >
+              CỔNG ĐOÀN VIÊN
+            </Link>
+            <Link
+              href="/admin"
+              className="activities-admin"
+            >
+              BCH / ADMIN
+            </Link>
+          </div>
         </div>
       </header>
 

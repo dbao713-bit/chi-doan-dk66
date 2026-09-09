@@ -14,6 +14,8 @@ import {
   Users,
   Activity,
   Clock3,
+  KeyRound,
+  MessageSquare,
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
@@ -227,13 +229,30 @@ export default function Dashboard() {
             />
 
             <DashboardModule
-              href="#"
+              href="/dashboard/activities"
               icon={<CalendarDays />}
               number="04"
               title="Sinh hoạt"
-              description="Theo dõi các buổi sinh hoạt Chi đoàn"
+              description="Tổ chức hoạt động, đăng ký và điểm danh"
               className="dashboard-module-green"
-              disabled
+            />
+
+            <DashboardModule
+              href="/dashboard/accounts"
+              icon={<KeyRound />}
+              number="05"
+              title="Tài khoản đoàn viên"
+              description="Cấp tài khoản và quản lý truy cập"
+              className="dashboard-module-blue"
+            />
+
+            <DashboardModule
+              href="/dashboard/feedback"
+              icon={<MessageSquare />}
+              number="06"
+              title="Phản ánh & góp ý"
+              description="Tiếp nhận, xử lý và lưu trữ phản ánh"
+              className="dashboard-module-orange"
             />
 
           </div>

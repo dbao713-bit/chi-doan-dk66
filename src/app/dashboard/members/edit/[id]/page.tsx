@@ -25,6 +25,7 @@ type Member = {
   full_name: string;
   class_name: string;
   gender: string;
+  birth_year: number | null;
   avatar: string | null;
 
   conduct_score: number;
@@ -47,6 +48,7 @@ export default function EditMemberPage() {
   const [studentId, setStudentId] = useState("");
   const [fullName, setFullName] = useState("");
   const [className, setClassName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [gender, setGender] = useState("Nam");
 
   const [conductScore, setConductScore] = useState(0);
@@ -82,6 +84,7 @@ export default function EditMemberPage() {
           student_id,
           full_name,
           class_name,
+          birth_year,
           gender,
           avatar,
           conduct_score,
@@ -106,6 +109,7 @@ export default function EditMemberPage() {
       setStudentId(member.student_id ?? "");
       setFullName(member.full_name ?? "");
       setClassName(member.class_name ?? "");
+      setBirthYear(member.birth_year ? String(member.birth_year) : "");
       setGender(member.gender ?? "Nam");
 
       setConductScore(Number(member.conduct_score ?? 0));
@@ -228,6 +232,12 @@ export default function EditMemberPage() {
       return;
     }
 
+    const parsedBirthYear = Number(birthYear);
+    if (!Number.isInteger(parsedBirthYear) || parsedBirthYear < 1900 || parsedBirthYear > 2100) {
+      alert("Vui lòng nhập năm sinh hợp lệ!");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -260,6 +270,9 @@ export default function EditMemberPage() {
 
             class_name:
               className.trim(),
+
+            birth_year:
+              parsedBirthYear,
 
             gender,
 
@@ -547,6 +560,33 @@ export default function EditMemberPage() {
                 placeholder="Ví dụ: 11D"
                 onChange={setClassName}
               />
+
+
+              {/* NĂM SINH */}
+
+              <div className="member-edit-field">
+
+                <label>
+                  Năm sinh
+                  <span>*</span>
+                </label>
+
+                <input
+                  type="number"
+                  min="1900"
+                  max="2100"
+                  placeholder="Ví dụ: 2010"
+                  value={birthYear}
+                  onChange={(event) =>
+                    setBirthYear(event.target.value)
+                  }
+                />
+
+                <p className="text-xs font-medium text-slate-400">
+                  Dùng để khởi tạo mật khẩu tạm thời cho tài khoản đoàn viên.
+                </p>
+
+              </div>
 
 
               {/* GIỚI TÍNH */}

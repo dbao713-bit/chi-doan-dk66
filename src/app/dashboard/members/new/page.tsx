@@ -24,6 +24,7 @@ export default function NewMemberPage() {
   const [studentId, setStudentId] = useState("");
   const [fullName, setFullName] = useState("");
   const [className, setClassName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [gender, setGender] = useState("Nam");
 
   const [conductScore, setConductScore] = useState(0);
@@ -112,6 +113,12 @@ export default function NewMemberPage() {
 
     if (!className.trim()) {
       alert("Vui lòng nhập lớp!");
+      return;
+    }
+
+    const parsedBirthYear = Number(birthYear);
+    if (!Number.isInteger(parsedBirthYear) || parsedBirthYear < 1900 || parsedBirthYear > 2100) {
+      alert("Vui lòng nhập năm sinh hợp lệ!");
       return;
     }
 
@@ -211,6 +218,7 @@ export default function NewMemberPage() {
             student_id: studentId.trim(),
             full_name: fullName.trim(),
             class_name: className.trim(),
+            birth_year: parsedBirthYear,
             gender,
             avatar: avatarUrl,
 
@@ -509,6 +517,42 @@ export default function NewMemberPage() {
 
                 <small>
                   Ví dụ: 11D, 11A1...
+                </small>
+
+              </div>
+
+
+              {/* NĂM SINH */}
+
+              <div className="member-field">
+
+                <label>
+                  Năm sinh
+                  <span>*</span>
+                </label>
+
+                <div className="member-input-wrap">
+
+                  <GraduationCap
+                    size={18}
+                    className="member-input-icon"
+                  />
+
+                  <input
+                    type="number"
+                    min="1900"
+                    max="2100"
+                    placeholder="Ví dụ: 2010"
+                    value={birthYear}
+                    onChange={(e) =>
+                      setBirthYear(e.target.value)
+                    }
+                  />
+
+                </div>
+
+                <small>
+                  Dùng để khởi tạo mật khẩu tài khoản đoàn viên.
                 </small>
 
               </div>

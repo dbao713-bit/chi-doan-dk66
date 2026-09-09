@@ -27,10 +27,31 @@ export default function AuthGuard({
         return;
       }
 
-      setChecking(false);
+      try {
+        const response = await fetch("/api/admin/session", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          await supabase.auth.signOut();
+          router.replace("/admin");
+          return;
+        }
+
+        if (mounted) {
+          setChecking(false);
+        }
+      } catch (error) {
+        console.error("[AuthGuard]", error);
+        await supabase.auth.signOut();
+        if (mounted) router.replace("/admin");
+      }
     }
 
-    checkAuth();
+    void checkAuth();
 
     const {
       data: { subscription },
@@ -48,9 +69,9 @@ export default function AuthGuard({
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <div className="text-gray-500">
-          Đang kiểm tra đăng nhập...
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f8fc]">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-500 shadow-sm">
+          Đang xác thực quyền truy cập...
         </div>
       </div>
     );

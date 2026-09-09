@@ -71,9 +71,10 @@ type Announcement = {
   created_at: string;
 };
 
-type MemberSummary = {
-  id: number;
-  gender: string | null;
+type MemberStats = {
+  total: number;
+  male: number;
+  female: number;
 };
 
 type GalleryItem = {
@@ -148,9 +149,11 @@ export default function Home() {
   const [announcements, setAnnouncements] =
     useState<Announcement[]>([]);
 
-  const [members, setMembers] = useState<
-    MemberSummary[]
-  >([]);
+  const [memberStats, setMemberStats] = useState<MemberStats>({
+    total: 0,
+    male: 0,
+    female: 0,
+  });
 
   const [gallery, setGallery] = useState<
     GalleryItem[]
@@ -202,21 +205,25 @@ export default function Home() {
   ======================================================= */
 
   async function loadMembers() {
-    const { data, error } = await supabase
-      .from("members")
-      .select("id, gender");
+    const { data, error } = await supabase.rpc(
+      "get_public_member_stats"
+    );
 
     if (error) {
       console.error(
-        "LOAD MEMBERS ERROR:",
+        "LOAD MEMBER STATS ERROR:",
         error
       );
       return;
     }
 
-    setMembers(
-      (data ?? []) as MemberSummary[]
-    );
+    const row = Array.isArray(data) ? data[0] : data;
+
+    setMemberStats({
+      total: Number(row?.total ?? 0),
+      male: Number(row?.male ?? 0),
+      female: Number(row?.female ?? 0),
+    });
   }
 
   /* =======================================================
@@ -412,15 +419,9 @@ async function loadGallery() {
      MEMBER STATS
   ======================================================= */
 
-  const total = members.length;
-
-  const male = members.filter(
-    (member) => member.gender === "Nam"
-  ).length;
-
-  const female = members.filter(
-    (member) => member.gender === "Nữ"
-  ).length;
+  const total = memberStats.total;
+  const male = memberStats.male;
+  const female = memberStats.female;
 
   /* =======================================================
      GALLERY CONTROLS
@@ -698,24 +699,53 @@ async function loadGallery() {
             </a>
 
             <Link
-              href="/admin"
+              href="/portal"
               onClick={() =>
                 setMenuOpen(false)
               }
               className="mobile-admin-link"
             >
-              🔐 Đăng nhập BCH / Admin
+              Cổng đoàn viên
             </Link>
+
+            <Link
+  href="/portal"
+  onClick={() =>
+    setMenuOpen(false)
+  }
+  className="mobile-portal-link"
+>
+  Cổng đoàn viên
+</Link>
+
+<Link
+  href="/admin"
+  onClick={() =>
+    setMenuOpen(false)
+  }
+  className="mobile-admin-link"
+>
+  Đăng nhập BCH / Admin
+</Link>
 
           </nav>
 
 
-          <Link
-            href="/admin"
-            className="admin-button"
-          >
-            BCH / ADMIN
-          </Link>
+<div className="header-actions">
+  <Link
+    href="/portal"
+    className="member-portal-header-button"
+  >
+    CỔNG ĐOÀN VIÊN
+  </Link>
+
+  <Link
+    href="/admin"
+    className="admin-button"
+  >
+    BCH / ADMIN
+  </Link>
+</div>
 
 
           <button

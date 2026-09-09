@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   CalendarDays,
   Plus,
@@ -15,6 +17,9 @@ import {
   Check,
   Ban,
   RefreshCw,
+  ClipboardCheck,
+  Users,
+  UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -35,6 +40,22 @@ type Activity = {
   end_at: string | null;
   status: ActivityStatus;
   created_at: string;
+};
+
+type ActivityRegistration = {
+  id: string;
+  activity_id: string;
+  member_id: number;
+  status: "registered" | "cancelled";
+  registered_at: string;
+};
+
+type RegistrationMember = {
+  id: number;
+  full_name: string;
+  student_id: string;
+  class_name: string;
+  avatar: string | null;
 };
 
 const statusLabels: Record<
@@ -60,6 +81,19 @@ const statusIcons: Record<
 export default function ActivitiesPage() {
   const [activities, setActivities] =
     useState<Activity[]>([]);
+
+  const [registrations, setRegistrations] = useState<
+  ActivityRegistration[]
+>([]);
+
+const [registrationMembers, setRegistrationMembers] =
+  useState<RegistrationMember[]>([]);
+
+const [registrationModalActivity, setRegistrationModalActivity] =
+  useState<Activity | null>(null);
+
+const [loadingRegistrations, setLoadingRegistrations] =
+  useState(false);
 
   const [loading, setLoading] =
     useState(true);
@@ -101,6 +135,69 @@ export default function ActivitiesPage() {
       "scheduled"
     );
 
+  async function loadRegistrations() {
+  setLoadingRegistrations(true);
+
+  try {
+    const [registrationResult, memberResult] =
+      await Promise.all([
+        supabase
+          .from("activity_registrations")
+          .select(
+            "id, activity_id, member_id, status, registered_at"
+          )
+          .eq("status", "registered"),
+
+        supabase
+          .from("members")
+          .select(
+            "id, full_name, student_id, class_name, avatar"
+          )
+          .order("full_name", {
+            ascending: true,
+          }),
+      ]);
+
+    if (registrationResult.error) {
+      console.error(
+        "LOAD ACTIVITY REGISTRATIONS ERROR:",
+        registrationResult.error
+      );
+
+      alert(
+        `Không thể tải danh sách đăng ký: ${registrationResult.error.message}`
+      );
+
+      return;
+    }
+
+    if (memberResult.error) {
+      console.error(
+        "LOAD REGISTRATION MEMBERS ERROR:",
+        memberResult.error
+      );
+
+      alert(
+        `Không thể tải thông tin đoàn viên: ${memberResult.error.message}`
+      );
+
+      return;
+    }
+
+    setRegistrations(
+      (registrationResult.data ??
+        []) as ActivityRegistration[]
+    );
+
+    setRegistrationMembers(
+      (memberResult.data ??
+        []) as RegistrationMember[]
+    );
+  } finally {
+    setLoadingRegistrations(false);
+  }
+}
+
   async function loadActivities() {
     setLoading(true);
 
@@ -133,8 +230,9 @@ export default function ActivitiesPage() {
   }
 
   useEffect(() => {
-    loadActivities();
-  }, []);
+  void loadActivities();
+  void loadRegistrations();
+}, []);
 
   const filteredActivities =
     useMemo(() => {
@@ -393,6 +491,36 @@ export default function ActivitiesPage() {
       )
     );
   }
+
+  function getRegistrationCount(activityId: string) {
+  return registrations.filter(
+    (item) => item.activity_id === activityId
+  ).length;
+}
+
+function getActivityRegistrations(activityId: string) {
+  const rows = registrations.filter(
+    (item) => item.activity_id === activityId
+  );
+
+  const memberMap = new Map(
+    registrationMembers.map((member) => [member.id, member])
+  );
+
+  return rows
+    .map((registration) => ({
+      registration,
+      member: memberMap.get(registration.member_id),
+    }))
+    .filter(
+      (
+        item
+      ): item is {
+        registration: ActivityRegistration;
+        member: RegistrationMember;
+      } => Boolean(item.member)
+    );
+}
 
   return (
     <main className="dashboard-page activities-dashboard-page">
@@ -910,12 +1038,45 @@ export default function ActivitiesPage() {
                         </span>
                       )}
 
+                      <span className="activity-registration-summary">
+  <Users size={15} />
+
+  {loadingRegistrations
+    ? "Đang tải đăng ký..."
+    : `${getRegistrationCount(activity.id)} đoàn viên đã đăng ký`}
+</span>
+
                     </div>
 
                   </div>
 
 
                   <div className="activity-admin-actions-premium">
+
+                    <Link
+                      href={`/dashboard/activities/${activity.id}/attendance`}
+                      title="Điểm danh"
+                      className="!bg-[#edf6fc] !text-[#005bac]"
+                    >
+                      <ClipboardCheck size={16} />
+                    </Link>
+
+                    <button
+  type="button"
+  onClick={() =>
+    setRegistrationModalActivity(activity)
+  }
+  title="Xem đoàn viên đã đăng ký"
+  className="activity-registration-button"
+>
+  <Users size={16} />
+
+  {getRegistrationCount(activity.id) > 0 && (
+    <span>
+      {getRegistrationCount(activity.id)}
+    </span>
+  )}
+</button>
 
                     <button
                       type="button"
@@ -954,6 +1115,164 @@ export default function ActivitiesPage() {
 
       </section>
 
+      {/* REGISTRATION MODAL */}
+
+{registrationModalActivity && (
+  <div
+    className="activity-registration-backdrop"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        setRegistrationModalActivity(null);
+      }
+    }}
+  >
+    <section className="activity-registration-modal">
+      <header className="activity-registration-modal-header">
+        <div>
+          <span>ACTIVITY REGISTRATIONS</span>
+
+          <h2>
+            Đoàn viên đã đăng ký
+          </h2>
+
+          <p>
+            {registrationModalActivity.title}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setRegistrationModalActivity(null)
+          }
+          aria-label="Đóng"
+        >
+          <X size={20} />
+        </button>
+      </header>
+
+      <div className="activity-registration-modal-summary">
+        <div className="activity-registration-summary-icon">
+          <Users size={20} />
+        </div>
+
+        <div>
+          <strong>
+            {getRegistrationCount(
+              registrationModalActivity.id
+            )}
+          </strong>
+
+          <span>
+            đoàn viên đã đăng ký tham gia
+          </span>
+        </div>
+      </div>
+
+      <div className="activity-registration-list">
+        {getActivityRegistrations(
+          registrationModalActivity.id
+        ).length === 0 ? (
+          <div className="activity-registration-empty">
+            <UserRound size={28} />
+
+            <strong>
+              Chưa có đoàn viên đăng ký
+            </strong>
+
+            <span>
+              Khi đoàn viên đăng ký từ Cổng đoàn viên,
+              danh sách sẽ xuất hiện tại đây.
+            </span>
+          </div>
+        ) : (
+          getActivityRegistrations(
+            registrationModalActivity.id
+          ).map(
+            ({
+              registration,
+              member,
+            }) => (
+              <div
+                key={registration.id}
+                className="activity-registration-row"
+              >
+                <div className="activity-registration-avatar">
+                  {member.avatar ? (
+                    <img
+                      src={member.avatar}
+                      alt=""
+                    />
+                  ) : (
+                    member.full_name
+                      .charAt(0)
+                      .toUpperCase()
+                  )}
+                </div>
+
+                <div className="activity-registration-member">
+                  <strong>
+                    {member.full_name}
+                  </strong>
+
+                  <span>
+                    {member.student_id}
+                    {" · "}
+                    {member.class_name}
+                  </span>
+                </div>
+
+                <div className="activity-registration-time">
+                  <span>ĐĂNG KÝ</span>
+
+                  <strong>
+                    {new Date(
+                      registration.registered_at
+                    ).toLocaleDateString(
+                      "vi-VN",
+                      {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      }
+                    )}
+                  </strong>
+                </div>
+
+                <div className="activity-registration-check">
+                  <CheckCircle2 size={17} />
+                </div>
+              </div>
+            )
+          )
+        )}
+      </div>
+
+      <footer className="activity-registration-modal-footer">
+        <button
+          type="button"
+          onClick={() =>
+            setRegistrationModalActivity(null)
+          }
+          className="activity-registration-close"
+        >
+          Đóng
+        </button>
+
+        <Link
+          href={`/dashboard/activities/${registrationModalActivity.id}/attendance`}
+          className="activity-registration-attendance-link"
+          onClick={() =>
+            setRegistrationModalActivity(null)
+          }
+        >
+          <ClipboardCheck size={17} />
+          Mở điểm danh
+        </Link>
+      </footer>
+    </section>
+  </div>
+)}
 
       {/* MODAL */}
 

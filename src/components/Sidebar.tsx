@@ -12,6 +12,8 @@ import {
   Settings,
   GraduationCap,
   Trophy,
+  KeyRound,
+  MessageSquare,
 } from "lucide-react";
 
 import { useSidebar } from "@/context/SidebarContext";
@@ -31,6 +33,16 @@ const menuItems = [
     href: "/dashboard/announcements",
     title: "Thông báo",
     icon: Bell,
+  },
+  {
+    href: "/dashboard/accounts",
+    title: "Tài khoản đoàn viên",
+    icon: KeyRound,
+  },
+  {
+    href: "/dashboard/feedback",
+    title: "Phản ánh & góp ý",
+    icon: MessageSquare,
   },
 ];
 
