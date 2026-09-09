@@ -708,15 +708,6 @@ async function loadGallery() {
               Cổng đoàn viên
             </Link>
 
-            <Link
-  href="/portal"
-  onClick={() =>
-    setMenuOpen(false)
-  }
-  className="mobile-portal-link"
->
-  Cổng đoàn viên
-</Link>
 
 <Link
   href="/admin"
