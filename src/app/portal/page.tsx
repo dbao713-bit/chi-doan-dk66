@@ -7,6 +7,7 @@ import {
   Activity as ActivityIcon,
   Bell,
   CalendarDays,
+  QrCode,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
@@ -766,6 +767,14 @@ export default function PortalPage() {
                 <em>{registeredCount}</em>
               )}
             </a>
+
+            <a
+  href="/portal/attendance/scan"
+  className="member-portal-nav-item member-portal-nav-qr"
+>
+  <QrCode size={18} />
+  <span>Quét QR điểm danh</span>
+</a>
 
             <a
               href="#score"

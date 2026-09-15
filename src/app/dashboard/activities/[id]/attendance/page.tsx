@@ -17,15 +17,18 @@ import {
   Clock3,
   Download,
   MapPin,
+  QrCode,
   Save,
   Search,
   UserCheck,
   UserX,
   Users,
+  X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { QRCodeSVG } from "qrcode.react";
 
 type Activity = {
   id: string;
@@ -63,6 +66,12 @@ export default function AttendancePage() {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+const [qrLoading, setQrLoading] = useState(false);
+const [qrToken, setQrToken] = useState("");
+const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
+  null
+);
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
@@ -397,6 +406,93 @@ export default function AttendancePage() {
     setSaving(false);
   }
 
+async function openQr() {
+  if (qrLoading) return;
+
+  setQrLoading(true);
+  setQrToken("");
+  setQrExpiresAt(null);
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      toast.error("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+    }, 10000);
+
+    try {
+      const response = await fetch(
+        "/api/attendance/qr",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            activityId: activity?.id,
+          }),
+          cache: "no-store",
+          signal: controller.signal,
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Không thể tạo mã QR điểm danh."
+        );
+      }
+
+      if (!data?.token) {
+        throw new Error(
+          "API không trả về mã QR."
+        );
+      }
+
+      setQrToken(data.token);
+      setQrExpiresAt(
+        typeof data.expiresAt === "number"
+          ? data.expiresAt
+          : null
+      );
+      setQrOpen(true);
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  } catch (error) {
+    console.error("[OPEN QR]", error);
+
+    if (
+      error instanceof DOMException &&
+      error.name === "AbortError"
+    ) {
+      toast.error(
+        "Tạo mã QR quá lâu. Vui lòng thử lại."
+      );
+    } else {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo mã QR."
+      );
+    }
+  } finally {
+    setQrLoading(false);
+  }
+}
+
   function exportExcel() {
     if (!activity) return;
 
@@ -553,6 +649,17 @@ export default function AttendancePage() {
           </button>
 
           <div className="attendance-top-actions">
+            <button
+  type="button"
+  onClick={() => void openQr()}
+  disabled={qrLoading}
+  className="attendance-qr-button"
+>
+  <QrCode size={16} />
+  <span>
+    {qrLoading ? "ĐANG TẠO QR..." : "MỞ QR ĐIỂM DANH"}
+  </span>
+</button>
             <button
               type="button"
               onClick={exportExcel}
@@ -1351,6 +1458,78 @@ export default function AttendancePage() {
       </div>
 
       <style jsx>{styles}</style>
+      {qrOpen && qrToken && (
+  <div
+    className="attendance-qr-overlay"
+    onClick={() => setQrOpen(false)}
+  >
+    <div
+      className="attendance-qr-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="attendance-qr-modal-header">
+        <div>
+          <span className="section-kicker">
+            ĐIỂM DANH NHANH
+          </span>
+
+          <h2>Quét mã QR để điểm danh</h2>
+
+          <p>{activity.title}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setQrOpen(false)}
+          className="attendance-qr-close"
+          aria-label="Đóng"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="attendance-qr-code">
+        <QRCodeSVG
+          value={qrToken}
+          size={320}
+          level="M"
+          includeMargin
+        />
+      </div>
+
+      <div className="attendance-qr-status">
+        <strong>QR đang hoạt động</strong>
+
+        <span>
+          Mã có hiệu lực trong 10 phút.
+          {qrExpiresAt
+            ? ` Hết hạn lúc ${new Date(
+                qrExpiresAt
+              ).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}.`
+            : ""}
+        </span>
+      </div>
+
+      <div className="attendance-qr-help">
+        Thành viên đăng nhập Cổng đoàn viên, quét mã và hệ
+        thống sẽ tự động ghi nhận có mặt.
+      </div>
+
+      <button
+        type="button"
+        onClick={() => void openQr()}
+        className="attendance-qr-refresh"
+      >
+        <QrCode size={16} />
+        Tạo mã QR mới
+      </button>
+    </div>
+  </div>
+)}
     </main>
   );
 }

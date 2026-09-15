@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-
 import {
   CalendarDays,
   Plus,
@@ -20,8 +19,17 @@ import {
   ClipboardCheck,
   Users,
   UserRound,
+  UserCheck,
+  BarChart3,
+  ArrowRight,
+  CircleDot,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { supabase } from "@/lib/supabase";
 
@@ -58,6 +66,12 @@ type RegistrationMember = {
   avatar: string | null;
 };
 
+type ActivityAttendance = {
+  activity_id: string;
+  member_id: number;
+  present: boolean;
+};
+
 const statusLabels: Record<
   ActivityStatus,
   string
@@ -70,7 +84,7 @@ const statusLabels: Record<
 
 const statusIcons: Record<
   ActivityStatus,
-  React.ReactNode
+  ReactNode
 > = {
   scheduled: <CalendarClock size={15} />,
   ongoing: <RefreshCw size={15} />,
@@ -79,44 +93,47 @@ const statusIcons: Record<
 };
 
 export default function ActivitiesPage() {
-  const [activities, setActivities] =
-    useState<Activity[]>([]);
+  const [activities, setActivities] = useState<Activity[]>(
+    []
+  );
 
   const [registrations, setRegistrations] = useState<
-  ActivityRegistration[]
->([]);
+    ActivityRegistration[]
+  >([]);
 
-const [registrationMembers, setRegistrationMembers] =
-  useState<RegistrationMember[]>([]);
+  const [registrationMembers, setRegistrationMembers] =
+    useState<RegistrationMember[]>([]);
 
-const [registrationModalActivity, setRegistrationModalActivity] =
-  useState<Activity | null>(null);
+  const [attendanceRows, setAttendanceRows] = useState<
+    ActivityAttendance[]
+  >([]);
 
-const [loadingRegistrations, setLoadingRegistrations] =
-  useState(false);
+  const [registrationModalActivity, setRegistrationModalActivity] =
+    useState<Activity | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [modalOpen, setModalOpen] =
+  const [loadingRegistrations, setLoadingRegistrations] =
     useState(false);
+
+  const [loadingAttendance, setLoadingAttendance] =
+    useState(false);
+
+  const [loading, setLoading] = useState(true);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
 
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] =
-    useState<"all" | ActivityStatus>(
-      "all"
-    );
+    useState<"all" | ActivityStatus>("all");
 
-  const [title, setTitle] =
-    useState("");
+  const [title, setTitle] = useState("");
 
   const [description, setDescription] =
     useState("");
@@ -131,174 +148,370 @@ const [loadingRegistrations, setLoadingRegistrations] =
     useState("");
 
   const [status, setStatus] =
-    useState<ActivityStatus>(
-      "scheduled"
-    );
+    useState<ActivityStatus>("scheduled");
 
   async function loadRegistrations() {
-  setLoadingRegistrations(true);
+    setLoadingRegistrations(true);
 
-  try {
-    const [registrationResult, memberResult] =
-      await Promise.all([
+    try {
+      const [
+        registrationResult,
+        memberResult,
+      ] = await Promise.all([
         supabase
           .from("activity_registrations")
           .select(
-            "id, activity_id, member_id, status, registered_at"
+            "id,activity_id,member_id,status,registered_at"
           )
           .eq("status", "registered"),
 
         supabase
           .from("members")
           .select(
-            "id, full_name, student_id, class_name, avatar"
+            "id,full_name,student_id,class_name,avatar"
           )
           .order("full_name", {
             ascending: true,
           }),
       ]);
 
-    if (registrationResult.error) {
-      console.error(
-        "LOAD ACTIVITY REGISTRATIONS ERROR:",
-        registrationResult.error
+      if (registrationResult.error) {
+        console.error(
+          "LOAD ACTIVITY REGISTRATIONS ERROR:",
+          registrationResult.error
+        );
+
+        alert(
+          `Không thể tải danh sách đăng ký: ${registrationResult.error.message}`
+        );
+
+        return;
+      }
+
+      if (memberResult.error) {
+        console.error(
+          "LOAD REGISTRATION MEMBERS ERROR:",
+          memberResult.error
+        );
+
+        alert(
+          `Không thể tải thông tin đoàn viên: ${memberResult.error.message}`
+        );
+
+        return;
+      }
+
+      setRegistrations(
+        (registrationResult.data ??
+          []) as ActivityRegistration[]
       );
 
-      alert(
-        `Không thể tải danh sách đăng ký: ${registrationResult.error.message}`
+      setRegistrationMembers(
+        (memberResult.data ??
+          []) as RegistrationMember[]
       );
-
-      return;
+    } finally {
+      setLoadingRegistrations(false);
     }
-
-    if (memberResult.error) {
-      console.error(
-        "LOAD REGISTRATION MEMBERS ERROR:",
-        memberResult.error
-      );
-
-      alert(
-        `Không thể tải thông tin đoàn viên: ${memberResult.error.message}`
-      );
-
-      return;
-    }
-
-    setRegistrations(
-      (registrationResult.data ??
-        []) as ActivityRegistration[]
-    );
-
-    setRegistrationMembers(
-      (memberResult.data ??
-        []) as RegistrationMember[]
-    );
-  } finally {
-    setLoadingRegistrations(false);
   }
-}
 
-  async function loadActivities() {
-    setLoading(true);
+  async function loadAttendance() {
+    setLoadingAttendance(true);
 
-    const { data, error } =
-      await supabase
-        .from("activities")
-        .select(
-          "id, title, description, location, start_at, end_at, status, created_at"
-        )
-        .order("start_at", {
-          ascending: true,
-        });
+    try {
+      const { data, error } =
+        await supabase
+          .from("activity_attendance")
+          .select(
+            "activity_id,member_id,present"
+          );
 
-    if (error) {
-      console.error(
-        "LOAD ACTIVITIES ERROR:",
-        error
+      if (error) {
+        console.error(
+          "LOAD ACTIVITY ATTENDANCE ERROR:",
+          error
+        );
+
+        return;
+      }
+
+      setAttendanceRows(
+        (data ?? []) as ActivityAttendance[]
       );
+    } finally {
+      setLoadingAttendance(false);
+    }
+  }
 
-      alert(
-        `Không thể tải danh sách sinh hoạt: ${error.message}`
-      );
+  async function loadActivities(
+    silent = false
+  ) {
+    if (silent) {
+      setRefreshing(true);
     } else {
+      setLoading(true);
+    }
+
+    try {
+      const { data, error } =
+        await supabase
+          .from("activities")
+          .select(
+            "id,title,description,location,start_at,end_at,status,created_at"
+          )
+          .order("start_at", {
+            ascending: true,
+          });
+
+      if (error) {
+        console.error(
+          "LOAD ACTIVITIES ERROR:",
+          error
+        );
+
+        alert(
+          `Không thể tải danh sách sinh hoạt: ${error.message}`
+        );
+
+        return;
+      }
+
       setActivities(
         (data ?? []) as Activity[]
       );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }
 
-    setLoading(false);
+  async function refreshAll() {
+    await Promise.all([
+      loadActivities(true),
+      loadRegistrations(),
+      loadAttendance(),
+    ]);
   }
 
   useEffect(() => {
-  void loadActivities();
-  void loadRegistrations();
-}, []);
+    void loadActivities();
+    void loadRegistrations();
+    void loadAttendance();
+  }, []);
 
-  const filteredActivities =
-    useMemo(() => {
-      const keyword =
-        search.trim().toLowerCase();
+  const filteredActivities = useMemo(() => {
+    const keyword =
+      search.trim().toLowerCase();
 
-      return activities.filter(
-        (activity) => {
-          const matchesSearch =
-            !keyword ||
-            activity.title
-              .toLowerCase()
-              .includes(keyword) ||
-            (
-              activity.location ??
-              ""
-            )
-              .toLowerCase()
-              .includes(keyword);
+    return activities.filter(
+      (activity) => {
+        const matchesSearch =
+          !keyword ||
+          activity.title
+            .toLowerCase()
+            .includes(keyword) ||
+          (
+            activity.location ?? ""
+          )
+            .toLowerCase()
+            .includes(keyword) ||
+          (
+            activity.description ?? ""
+          )
+            .toLowerCase()
+            .includes(keyword);
 
-          const matchesStatus =
-            statusFilter === "all" ||
-            activity.status ===
-              statusFilter;
+        const matchesStatus =
+          statusFilter === "all" ||
+          activity.status === statusFilter;
 
-          return (
-            matchesSearch &&
-            matchesStatus
-          );
-        }
-      );
-    }, [
-      activities,
-      search,
-      statusFilter,
-    ]);
+        return (
+          matchesSearch &&
+          matchesStatus
+        );
+      }
+    );
+  }, [
+    activities,
+    search,
+    statusFilter,
+  ]);
 
   const stats = useMemo(() => {
     return {
       total: activities.length,
+
       scheduled:
         activities.filter(
           (item) =>
-            item.status ===
-            "scheduled"
+            item.status === "scheduled"
         ).length,
+
       ongoing:
         activities.filter(
           (item) =>
-            item.status ===
-            "ongoing"
+            item.status === "ongoing"
         ).length,
+
       completed:
         activities.filter(
           (item) =>
-            item.status ===
-            "completed"
+            item.status === "completed"
         ).length,
+
       cancelled:
         activities.filter(
           (item) =>
-            item.status ===
-            "cancelled"
+            item.status === "cancelled"
         ).length,
+
+      registrations:
+        registrations.filter(
+          (item) =>
+            item.status === "registered"
+        ).length,
+
+      attendancePresent:
+        attendanceRows.filter(
+          (item) =>
+            item.present === true
+        ).length,
+
+      attendanceTotal:
+        attendanceRows.length,
     };
-  }, [activities]);
+  }, [
+    activities,
+    registrations,
+    attendanceRows,
+  ]);
+
+  const attendanceRate =
+    stats.attendanceTotal > 0
+      ? Math.round(
+          (stats.attendancePresent /
+            stats.attendanceTotal) *
+            100
+        )
+      : 0;
+
+  function getRegistrationCount(
+    activityId: string
+  ) {
+    return registrations.filter(
+      (item) =>
+        item.activity_id === activityId &&
+        item.status === "registered"
+    ).length;
+  }
+
+  function getAttendanceCount(
+    activityId: string
+  ) {
+    return attendanceRows.filter(
+      (item) =>
+        item.activity_id === activityId
+    ).length;
+  }
+
+  function getPresentCount(
+    activityId: string
+  ) {
+    return attendanceRows.filter(
+      (item) =>
+        item.activity_id === activityId &&
+        item.present === true
+    ).length;
+  }
+
+  function getActivityAttendanceRate(
+    activityId: string
+  ) {
+    const total =
+      getAttendanceCount(activityId);
+
+    if (!total) return 0;
+
+    return Math.round(
+      (getPresentCount(activityId) /
+        total) *
+        100
+    );
+  }
+
+  function getRegistrationAttendance(
+    activityId: string,
+    memberId: number
+  ) {
+    return attendanceRows.find(
+      (item) =>
+        item.activity_id === activityId &&
+        item.member_id === memberId
+    );
+  }
+
+  function getActivityRegistrations(
+    activityId: string
+  ) {
+    const rows = registrations.filter(
+      (item) =>
+        item.activity_id === activityId &&
+        item.status === "registered"
+    );
+
+    const memberMap = new Map(
+      registrationMembers.map(
+        (member) => [
+          member.id,
+          member,
+        ]
+      )
+    );
+
+    return rows
+      .map((registration) => ({
+        registration,
+        member: memberMap.get(
+          registration.member_id
+        ),
+        attendance:
+          getRegistrationAttendance(
+            activityId,
+            registration.member_id
+          ),
+      }))
+      .filter(
+        (
+          item
+        ): item is {
+          registration: ActivityRegistration;
+          member: RegistrationMember;
+          attendance:
+            | ActivityAttendance
+            | undefined;
+        } => Boolean(item.member)
+      )
+      .sort((a, b) => {
+        const aPresent =
+          a.attendance?.present === true
+            ? 0
+            : 1;
+
+        const bPresent =
+          b.attendance?.present === true
+            ? 0
+            : 1;
+
+        if (aPresent !== bPresent) {
+          return aPresent - bPresent;
+        }
+
+        return a.member.full_name.localeCompare(
+          b.member.full_name,
+          "vi"
+        );
+      });
+  }
 
   function resetForm() {
     setTitle("");
@@ -333,11 +546,13 @@ const [loadingRegistrations, setLoadingRegistrations] =
     setLocation(
       activity.location ?? ""
     );
+
     setStartAt(
       toDatetimeLocal(
         activity.start_at
       )
     );
+
     setEndAt(
       activity.end_at
         ? toDatetimeLocal(
@@ -345,7 +560,11 @@ const [loadingRegistrations, setLoadingRegistrations] =
           )
         : ""
     );
-    setStatus(activity.status);
+
+    setStatus(
+      activity.status
+    );
+
     setModalOpen(true);
   }
 
@@ -393,20 +612,26 @@ const [loadingRegistrations, setLoadingRegistrations] =
     try {
       const payload = {
         title: title.trim(),
+
         description:
           description.trim() ||
           null,
+
         location:
-          location.trim() || null,
+          location.trim() ||
+          null,
+
         start_at:
           new Date(
             startAt
           ).toISOString(),
+
         end_at: endAt
           ? new Date(
               endAt
             ).toISOString()
           : null,
+
         status,
       };
 
@@ -490,42 +715,28 @@ const [loadingRegistrations, setLoadingRegistrations] =
           item.id !== activity.id
       )
     );
-  }
 
-  function getRegistrationCount(activityId: string) {
-  return registrations.filter(
-    (item) => item.activity_id === activityId
-  ).length;
-}
-
-function getActivityRegistrations(activityId: string) {
-  const rows = registrations.filter(
-    (item) => item.activity_id === activityId
-  );
-
-  const memberMap = new Map(
-    registrationMembers.map((member) => [member.id, member])
-  );
-
-  return rows
-    .map((registration) => ({
-      registration,
-      member: memberMap.get(registration.member_id),
-    }))
-    .filter(
-      (
-        item
-      ): item is {
-        registration: ActivityRegistration;
-        member: RegistrationMember;
-      } => Boolean(item.member)
+    setRegistrations((current) =>
+      current.filter(
+        (item) =>
+          item.activity_id !== activity.id
+      )
     );
-}
+
+    setAttendanceRows((current) =>
+      current.filter(
+        (item) =>
+          item.activity_id !== activity.id
+      )
+    );
+  }
 
   return (
     <main className="dashboard-page activities-dashboard-page">
 
-      {/* HERO */}
+      {/* =====================================================
+          HERO
+      ===================================================== */}
 
       <section className="activities-dashboard-hero">
 
@@ -540,13 +751,13 @@ function getActivityRegistrations(activityId: string) {
           </div>
 
           <h1>
-            Lịch hoạt động Chi đoàn
+            Trung tâm hoạt động
           </h1>
 
           <p>
-            Tổ chức, theo dõi và quản lý các
-            buổi sinh hoạt, sự kiện và hoạt động
-            của Chi đoàn D-K66.
+            Tổ chức, theo dõi đăng ký và điều phối
+            hoạt động của Chi đoàn D-K66
+            trong một không gian quản trị tập trung.
           </p>
 
           <div className="activities-dashboard-actions">
@@ -562,19 +773,28 @@ function getActivityRegistrations(activityId: string) {
 
             <button
               type="button"
-              onClick={loadActivities}
-              disabled={loading}
+              onClick={() =>
+                void refreshAll()
+              }
+              disabled={
+                loading ||
+                refreshing
+              }
               className="activities-dashboard-secondary"
             >
               <RefreshCw
                 size={16}
                 className={
-                  loading
+                  loading ||
+                  refreshing
                     ? "activities-spin"
                     : ""
                 }
               />
-              Tải lại
+
+              {refreshing
+                ? "Đang cập nhật"
+                : "Làm mới dữ liệu"}
             </button>
 
           </div>
@@ -582,208 +802,180 @@ function getActivityRegistrations(activityId: string) {
         </div>
 
 
-        <div className="activities-dashboard-date-card">
+        <div className="activities-dashboard-command-card">
+
+          <div className="activities-command-card-icon">
+            <BarChart3 size={28} />
+          </div>
 
           <span>
-            HÔM NAY
+            ACTIVITY CONTROL CENTER
           </span>
 
           <strong>
-            {new Date().getDate()}
+            {stats.total}
           </strong>
 
           <small>
-            {new Date().toLocaleDateString(
-              "vi-VN",
-              {
-                weekday: "long",
-                month: "long",
-                year: "numeric",
-              }
-            )}
+            hoạt động trong hệ thống
           </small>
+
+          <div className="activities-command-mini-stats">
+
+            <div>
+              <b>
+                {stats.registrations}
+              </b>
+
+              <span>
+                lượt đăng ký
+              </span>
+            </div>
+
+            <div>
+              <b>
+                {attendanceRate}%
+              </b>
+
+              <span>
+                điểm danh
+              </span>
+            </div>
+
+          </div>
 
         </div>
 
       </section>
 
 
-      {/* STATS */}
+      {/* =====================================================
+          GLOBAL STATS
+      ===================================================== */}
 
       <section className="activities-dashboard-stats">
 
-        <button
-          type="button"
-          className={`activity-stat-card ${
+        <ActivityStat
+          active={
             statusFilter === "all"
-              ? "active"
-              : ""
-          }`}
+          }
           onClick={() =>
             setStatusFilter("all")
           }
-        >
-          <div className="activity-stat-icon activity-stat-blue">
-            <CalendarDays size={19} />
-          </div>
+          icon={<CalendarDays size={19} />}
+          tone="blue"
+          label="Tất cả"
+          value={stats.total}
+          detail="hoạt động"
+        />
 
-          <div>
-            <span>
-              Tất cả
-            </span>
-
-            <strong>
-              {stats.total}
-            </strong>
-
-            <small>
-              hoạt động
-            </small>
-          </div>
-        </button>
-
-
-        <button
-          type="button"
-          className={`activity-stat-card ${
+        <ActivityStat
+          active={
             statusFilter === "scheduled"
-              ? "active"
-              : ""
-          }`}
+          }
           onClick={() =>
             setStatusFilter(
               "scheduled"
             )
           }
-        >
-          <div className="activity-stat-icon activity-stat-blue">
+          icon={
             <CalendarClock size={19} />
-          </div>
+          }
+          tone="blue"
+          label="Sắp diễn ra"
+          value={stats.scheduled}
+          detail="hoạt động"
+        />
 
-          <div>
-            <span>
-              Sắp diễn ra
-            </span>
-
-            <strong>
-              {stats.scheduled}
-            </strong>
-
-            <small>
-              hoạt động
-            </small>
-          </div>
-        </button>
-
-
-        <button
-          type="button"
-          className={`activity-stat-card ${
+        <ActivityStat
+          active={
             statusFilter === "ongoing"
-              ? "active"
-              : ""
-          }`}
+          }
           onClick={() =>
             setStatusFilter(
               "ongoing"
             )
           }
-        >
-          <div className="activity-stat-icon activity-stat-green">
+          icon={
             <RefreshCw size={19} />
-          </div>
+          }
+          tone="green"
+          label="Đang diễn ra"
+          value={stats.ongoing}
+          detail="hoạt động"
+        />
 
-          <div>
-            <span>
-              Đang diễn ra
-            </span>
-
-            <strong>
-              {stats.ongoing}
-            </strong>
-
-            <small>
-              hoạt động
-            </small>
-          </div>
-        </button>
-
-
-        <button
-          type="button"
-          className={`activity-stat-card ${
+        <ActivityStat
+          active={
             statusFilter === "completed"
-              ? "active"
-              : ""
-          }`}
+          }
           onClick={() =>
             setStatusFilter(
               "completed"
             )
           }
-        >
-          <div className="activity-stat-icon activity-stat-emerald">
+          icon={
             <CheckCircle2 size={19} />
-          </div>
+          }
+          tone="emerald"
+          label="Hoàn thành"
+          value={stats.completed}
+          detail="hoạt động"
+        />
 
-          <div>
-            <span>
-              Hoàn thành
-            </span>
-
-            <strong>
-              {stats.completed}
-            </strong>
-
-            <small>
-              hoạt động
-            </small>
-          </div>
-        </button>
-
-
-        <button
-          type="button"
-          className={`activity-stat-card ${
+        <ActivityStat
+          active={
             statusFilter === "cancelled"
-              ? "active"
-              : ""
-          }`}
+          }
           onClick={() =>
             setStatusFilter(
               "cancelled"
             )
           }
-        >
-          <div className="activity-stat-icon activity-stat-red">
-            <Ban size={19} />
-          </div>
+          icon={<Ban size={19} />}
+          tone="red"
+          label="Đã hủy"
+          value={stats.cancelled}
+          detail="hoạt động"
+        />
 
-          <div>
-            <span>
-              Đã hủy
-            </span>
+        <ActivityStat
+          active={false}
+          onClick={() => undefined}
+          icon={<Users size={19} />}
+          tone="purple"
+          label="Lượt đăng ký"
+          value={stats.registrations}
+          detail="đoàn viên"
+          disabled
+        />
 
-            <strong>
-              {stats.cancelled}
-            </strong>
-
-            <small>
-              hoạt động
-            </small>
-          </div>
-        </button>
+        <ActivityStat
+          active={false}
+          onClick={() => undefined}
+          icon={
+            <ClipboardCheck size={19} />
+          }
+          tone="teal"
+          label="Điểm danh"
+          value={`${attendanceRate}%`}
+          detail={`${stats.attendancePresent}/${stats.attendanceTotal}`}
+          disabled
+        />
 
       </section>
 
 
-      {/* MAIN CARD */}
+      {/* =====================================================
+          MAIN
+      ===================================================== */}
 
       <section className="activities-dashboard-card">
 
         <div className="activities-dashboard-card-header">
 
           <div>
+
             <span>
               ACTIVITY SCHEDULE
             </span>
@@ -793,10 +985,13 @@ function getActivityRegistrations(activityId: string) {
             </h2>
 
             <p>
-              {filteredActivities.length}
-              {" "}
+              Hiển thị{" "}
+              <strong>
+                {filteredActivities.length}
+              </strong>{" "}
               hoạt động phù hợp với bộ lọc hiện tại.
             </p>
+
           </div>
 
 
@@ -843,6 +1038,7 @@ function getActivityRegistrations(activityId: string) {
               }
               className="activities-filter"
             >
+
               <option value="all">
                 Tất cả trạng thái
               </option>
@@ -862,12 +1058,17 @@ function getActivityRegistrations(activityId: string) {
               <option value="cancelled">
                 Đã hủy
               </option>
+
             </select>
 
           </div>
 
         </div>
 
+
+        {/* =====================================================
+            LIST
+        ===================================================== */}
 
         {loading ? (
 
@@ -876,17 +1077,23 @@ function getActivityRegistrations(activityId: string) {
             {Array.from({
               length: 4,
             }).map((_, index) => (
+
               <div
                 className="activities-loading-row"
                 key={index}
               >
+
                 <div />
+
                 <div>
                   <span />
                   <small />
                 </div>
+
                 <div />
+
               </div>
+
             ))}
 
           </div>
@@ -918,7 +1125,9 @@ function getActivityRegistrations(activityId: string) {
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setStatusFilter("all");
+                  setStatusFilter(
+                    "all"
+                  );
                 }}
                 className="activities-dashboard-secondary"
               >
@@ -943,170 +1152,317 @@ function getActivityRegistrations(activityId: string) {
           <div className="activities-timeline">
 
             {filteredActivities.map(
-              (activity, index) => (
-                <article
-                  key={activity.id}
-                  className={`activity-admin-card-premium activity-status-card-${activity.status}`}
-                >
+              (
+                activity,
+                index
+              ) => {
 
-                  <div className="activity-timeline-line">
-                    {index !==
-                      filteredActivities.length -
-                        1 && <span />}
-                  </div>
+                const registrationCount =
+                  getRegistrationCount(
+                    activity.id
+                  );
 
+                const attendanceCount =
+                  getAttendanceCount(
+                    activity.id
+                  );
 
-                  <div className="activity-date-block">
+                const presentCount =
+                  getPresentCount(
+                    activity.id
+                  );
 
-                    <span>
-                      {formatDay(
-                        activity.start_at
+                const activityAttendanceRate =
+                  getActivityAttendanceRate(
+                    activity.id
+                  );
+
+                return (
+                  <article
+                    key={activity.id}
+                    className={`activity-admin-card-premium activity-status-card-${activity.status}`}
+                  >
+
+                    <div className="activity-timeline-line">
+
+                      {index !==
+                        filteredActivities.length -
+                          1 && (
+                        <span />
                       )}
-                    </span>
 
-                    <strong>
-                      {formatMonth(
-                        activity.start_at
-                      )}
-                    </strong>
-
-                    <small>
-                      {formatYear(
-                        activity.start_at
-                      )}
-                    </small>
-
-                  </div>
+                    </div>
 
 
-                  <div className="activity-admin-main-premium">
+                    {/* DATE */}
 
-                    <div className="activity-admin-topline">
+                    <div className="activity-date-block">
 
-                      <div className="activity-admin-title-wrap">
+                      <span>
+                        {formatDay(
+                          activity.start_at
+                        )}
+                      </span>
 
-                        <h3>
-                          {activity.title}
-                        </h3>
+                      <strong>
+                        {formatMonth(
+                          activity.start_at
+                        )}
+                      </strong>
 
-                        <span
-                          className={`activity-status activity-status-${activity.status}`}
-                        >
-                          {statusIcons[
-                            activity.status
-                          ]}
+                      <small>
+                        {formatYear(
+                          activity.start_at
+                        )}
+                      </small>
 
-                          {
-                            statusLabels[
-                              activity.status
-                            ]
-                          }
-                        </span>
+                    </div>
+
+
+                    {/* MAIN */}
+
+                    <div className="activity-admin-main-premium">
+
+                      <div className="activity-admin-topline">
+
+                        <div className="activity-admin-title-wrap">
+
+                          <h3>
+                            {activity.title}
+                          </h3>
+
+                          <span
+                            className={`activity-status activity-status-${activity.status}`}
+                          >
+                            {
+                              statusIcons[
+                                activity.status
+                              ]
+                            }
+
+                            {
+                              statusLabels[
+                                activity.status
+                              ]
+                            }
+                          </span>
+
+                        </div>
 
                       </div>
 
-                    </div>
 
-
-                    {activity.description && (
-                      <p className="activity-admin-description">
-                        {activity.description}
-                      </p>
-                    )}
-
-
-                    <div className="activity-admin-meta-premium">
-
-                      <span>
-                        <Clock3 size={15} />
-                        {formatDateTime(
-                          activity.start_at
-                        )}
-
-                        {activity.end_at &&
-                          ` — ${formatTime(
-                            activity.end_at
-                          )}`}
-                      </span>
-
-                      {activity.location && (
-                        <span>
-                          <MapPin
-                            size={15}
-                          />
-                          {activity.location}
-                        </span>
+                      {activity.description && (
+                        <p className="activity-admin-description">
+                          {
+                            activity.description
+                          }
+                        </p>
                       )}
 
-                      <span className="activity-registration-summary">
-  <Users size={15} />
 
-  {loadingRegistrations
-    ? "Đang tải đăng ký..."
-    : `${getRegistrationCount(activity.id)} đoàn viên đã đăng ký`}
-</span>
+                      <div className="activity-admin-meta-premium">
+
+                        <span>
+                          <Clock3 size={15} />
+
+                          {formatDateTime(
+                            activity.start_at
+                          )}
+
+                          {activity.end_at &&
+                            ` — ${formatTime(
+                              activity.end_at
+                            )}`}
+                        </span>
+
+                        {activity.location && (
+                          <span>
+                            <MapPin size={15} />
+                            {
+                              activity.location
+                            }
+                          </span>
+                        )}
+
+                      </div>
+
+
+                      {/* ACTIVITY METRICS */}
+
+                      <div className="activity-live-metrics">
+
+                        <div className="activity-live-metric">
+
+                          <div className="activity-live-metric-icon blue">
+                            <Users size={15} />
+                          </div>
+
+                          <div>
+                            <strong>
+                              {
+                                registrationCount
+                              }
+                            </strong>
+
+                            <span>
+                              đăng ký
+                            </span>
+                          </div>
+
+                        </div>
+
+
+                        <div className="activity-live-metric">
+
+                          <div className="activity-live-metric-icon green">
+                            <UserCheck size={15} />
+                          </div>
+
+                          <div>
+                            <strong>
+                              {
+                                presentCount
+                              }
+                            </strong>
+
+                            <span>
+                              có mặt
+                            </span>
+                          </div>
+
+                        </div>
+
+
+                        <div className="activity-live-metric">
+
+                          <div className="activity-live-metric-icon purple">
+                            <ClipboardCheck
+                              size={15}
+                            />
+                          </div>
+
+                          <div>
+                            <strong>
+                              {
+                                activityAttendanceRate
+                              }%
+                            </strong>
+
+                            <span>
+                              điểm danh
+                            </span>
+                          </div>
+
+                        </div>
+
+                      </div>
+
+
+                      {/* MINI PROGRESS */}
+
+                      {attendanceCount > 0 && (
+                        <div className="activity-attendance-progress">
+
+                          <div className="activity-attendance-progress-head">
+
+                            <span>
+                              Điểm danh
+                            </span>
+
+                            <strong>
+                              {presentCount}/
+                              {attendanceCount}
+                            </strong>
+
+                          </div>
+
+                          <div className="activity-attendance-track">
+
+                            <div
+                              style={{
+                                width: `${activityAttendanceRate}%`,
+                              }}
+                            />
+
+                          </div>
+
+                        </div>
+                      )}
 
                     </div>
 
-                  </div>
+
+                    {/* ACTIONS */}
+
+                    <div className="activity-admin-actions-premium">
+
+                      <Link
+                        href={`/dashboard/activities/${activity.id}/attendance`}
+                        title="Điểm danh"
+                        className="activity-action-primary"
+                      >
+                        <ClipboardCheck
+                          size={16}
+                        />
+                      </Link>
 
 
-                  <div className="activity-admin-actions-premium">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRegistrationModalActivity(
+                            activity
+                          )
+                        }
+                        title="Xem đăng ký"
+                        className="activity-registration-button"
+                      >
+                        <Users size={16} />
 
-                    <Link
-                      href={`/dashboard/activities/${activity.id}/attendance`}
-                      title="Điểm danh"
-                      className="!bg-[#edf6fc] !text-[#005bac]"
-                    >
-                      <ClipboardCheck size={16} />
-                    </Link>
+                        {registrationCount >
+                          0 && (
+                          <span>
+                            {
+                              registrationCount
+                            }
+                          </span>
+                        )}
 
-                    <button
-  type="button"
-  onClick={() =>
-    setRegistrationModalActivity(activity)
-  }
-  title="Xem đoàn viên đã đăng ký"
-  className="activity-registration-button"
->
-  <Users size={16} />
+                      </button>
 
-  {getRegistrationCount(activity.id) > 0 && (
-    <span>
-      {getRegistrationCount(activity.id)}
-    </span>
-  )}
-</button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openEdit(
-                          activity
-                        )
-                      }
-                      title="Chỉnh sửa"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openEdit(
+                            activity
+                          )
+                        }
+                        title="Chỉnh sửa"
+                      >
+                        <Pencil size={16} />
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDelete(
-                          activity
-                        )
-                      }
-                      title="Xóa"
-                      className="danger"
-                    >
-                      <Trash2 size={16} />
-                    </button>
 
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDelete(
+                            activity
+                          )
+                        }
+                        title="Xóa"
+                        className="danger"
+                      >
+                        <Trash2 size={16} />
+                      </button>
 
-                </article>
-              )
+                    </div>
+
+                  </article>
+                );
+              }
             )}
 
           </div>
@@ -1115,166 +1471,334 @@ function getActivityRegistrations(activityId: string) {
 
       </section>
 
-      {/* REGISTRATION MODAL */}
 
-{registrationModalActivity && (
-  <div
-    className="activity-registration-backdrop"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        setRegistrationModalActivity(null);
-      }
-    }}
-  >
-    <section className="activity-registration-modal">
-      <header className="activity-registration-modal-header">
-        <div>
-          <span>ACTIVITY REGISTRATIONS</span>
+      {/* =====================================================
+          REGISTRATION / ATTENDANCE MODAL
+      ===================================================== */}
 
-          <h2>
-            Đoàn viên đã đăng ký
-          </h2>
-
-          <p>
-            {registrationModalActivity.title}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setRegistrationModalActivity(null)
-          }
-          aria-label="Đóng"
+      {registrationModalActivity && (
+        <div
+          className="activity-registration-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setRegistrationModalActivity(
+                null
+              );
+            }
+          }}
         >
-          <X size={20} />
-        </button>
-      </header>
 
-      <div className="activity-registration-modal-summary">
-        <div className="activity-registration-summary-icon">
-          <Users size={20} />
-        </div>
+          <section className="activity-registration-modal">
 
-        <div>
-          <strong>
-            {getRegistrationCount(
-              registrationModalActivity.id
-            )}
-          </strong>
+            <header className="activity-registration-modal-header">
 
-          <span>
-            đoàn viên đã đăng ký tham gia
-          </span>
-        </div>
-      </div>
+              <div>
 
-      <div className="activity-registration-list">
-        {getActivityRegistrations(
-          registrationModalActivity.id
-        ).length === 0 ? (
-          <div className="activity-registration-empty">
-            <UserRound size={28} />
+                <span>
+                  ACTIVITY PARTICIPANTS
+                </span>
 
-            <strong>
-              Chưa có đoàn viên đăng ký
-            </strong>
+                <h2>
+                  Đăng ký & điểm danh
+                </h2>
 
-            <span>
-              Khi đoàn viên đăng ký từ Cổng đoàn viên,
-              danh sách sẽ xuất hiện tại đây.
-            </span>
-          </div>
-        ) : (
-          getActivityRegistrations(
-            registrationModalActivity.id
-          ).map(
-            ({
-              registration,
-              member,
-            }) => (
-              <div
-                key={registration.id}
-                className="activity-registration-row"
+                <p>
+                  {
+                    registrationModalActivity.title
+                  }
+                </p>
+
+              </div>
+
+
+              <button
+                type="button"
+                onClick={() =>
+                  setRegistrationModalActivity(
+                    null
+                  )
+                }
+                aria-label="Đóng"
               >
-                <div className="activity-registration-avatar">
-                  {member.avatar ? (
-                    <img
-                      src={member.avatar}
-                      alt=""
-                    />
-                  ) : (
-                    member.full_name
-                      .charAt(0)
-                      .toUpperCase()
-                  )}
+                <X size={20} />
+              </button>
+
+            </header>
+
+
+            <div className="activity-registration-dashboard-summary">
+
+              <div className="activity-participant-summary-card">
+
+                <div className="activity-participant-summary-icon blue">
+                  <Users size={19} />
                 </div>
 
-                <div className="activity-registration-member">
+                <div>
                   <strong>
-                    {member.full_name}
+                    {
+                      getRegistrationCount(
+                        registrationModalActivity.id
+                      )
+                    }
                   </strong>
 
                   <span>
-                    {member.student_id}
-                    {" · "}
-                    {member.class_name}
+                    đã đăng ký
                   </span>
                 </div>
 
-                <div className="activity-registration-time">
-                  <span>ĐĂNG KÝ</span>
+              </div>
+
+
+              <div className="activity-participant-summary-card">
+
+                <div className="activity-participant-summary-icon green">
+                  <UserCheck size={19} />
+                </div>
+
+                <div>
+                  <strong>
+                    {
+                      getPresentCount(
+                        registrationModalActivity.id
+                      )
+                    }
+                  </strong>
+
+                  <span>
+                    có mặt
+                  </span>
+                </div>
+
+              </div>
+
+
+              <div className="activity-participant-summary-card">
+
+                <div className="activity-participant-summary-icon purple">
+                  <ClipboardCheck size={19} />
+                </div>
+
+                <div>
+                  <strong>
+                    {
+                      getActivityAttendanceRate(
+                        registrationModalActivity.id
+                      )
+                    }%
+                  </strong>
+
+                  <span>
+                    tỷ lệ điểm danh
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div className="activity-registration-list">
+
+              {loadingRegistrations ||
+              loadingAttendance ? (
+
+                <div className="activity-registration-loading">
+
+                  <RefreshCw
+                    size={22}
+                    className="activities-spin"
+                  />
+
+                  <span>
+                    Đang tải dữ liệu đoàn viên...
+                  </span>
+
+                </div>
+
+              ) : getActivityRegistrations(
+                  registrationModalActivity.id
+                ).length === 0 ? (
+
+                <div className="activity-registration-empty">
+
+                  <UserRound size={28} />
 
                   <strong>
-                    {new Date(
-                      registration.registered_at
-                    ).toLocaleDateString(
-                      "vi-VN",
-                      {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      }
-                    )}
+                    Chưa có đoàn viên đăng ký
                   </strong>
+
+                  <span>
+                    Khi đoàn viên đăng ký từ
+                    Cổng đoàn viên, danh sách sẽ
+                    xuất hiện tại đây.
+                  </span>
+
                 </div>
 
-                <div className="activity-registration-check">
-                  <CheckCircle2 size={17} />
-                </div>
-              </div>
-            )
-          )
-        )}
-      </div>
+              ) : (
 
-      <footer className="activity-registration-modal-footer">
-        <button
-          type="button"
-          onClick={() =>
-            setRegistrationModalActivity(null)
-          }
-          className="activity-registration-close"
-        >
-          Đóng
-        </button>
+                getActivityRegistrations(
+                  registrationModalActivity.id
+                ).map(
+                  ({
+                    registration,
+                    member,
+                    attendance,
+                  }) => {
 
-        <Link
-          href={`/dashboard/activities/${registrationModalActivity.id}/attendance`}
-          className="activity-registration-attendance-link"
-          onClick={() =>
-            setRegistrationModalActivity(null)
-          }
-        >
-          <ClipboardCheck size={17} />
-          Mở điểm danh
-        </Link>
-      </footer>
-    </section>
-  </div>
-)}
+                    const present =
+                      attendance?.present ===
+                      true;
 
-      {/* MODAL */}
+                    return (
+                      <div
+                        key={
+                          registration.id
+                        }
+                        className="activity-registration-row"
+                      >
+
+                        <div className="activity-registration-avatar">
+
+                          {member.avatar ? (
+                            <img
+                              src={
+                                member.avatar
+                              }
+                              alt=""
+                            />
+                          ) : (
+                            getInitials(
+                              member.full_name
+                            )
+                          )}
+
+                        </div>
+
+
+                        <div className="activity-registration-member">
+
+                          <strong>
+                            {
+                              member.full_name
+                            }
+                          </strong>
+
+                          <span>
+                            {
+                              member.student_id
+                            }
+                            {" · "}
+                            {
+                              member.class_name
+                            }
+                          </span>
+
+                        </div>
+
+
+                        <div className="activity-registration-time">
+
+                          <span>
+                            ĐĂNG KÝ
+                          </span>
+
+                          <strong>
+                            {new Date(
+                              registration.registered_at
+                            ).toLocaleDateString(
+                              "vi-VN",
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              }
+                            )}
+                          </strong>
+
+                        </div>
+
+
+                        <div
+  className={`activity-attendance-state ${
+    present
+      ? "present"
+      : "not-recorded"
+  }`}
+>
+
+                          {present ? (
+                            <>
+                              <CheckCircle2
+                                size={15}
+                              />
+
+                              Có mặt
+                            </>
+                          ) : (
+                            <>
+                              <CircleDot
+                                size={15}
+                              />
+
+                              Chưa ghi nhận
+                            </>
+                          )}
+
+                        </div>
+
+                      </div>
+                    );
+                  }
+                )
+
+              )}
+
+            </div>
+
+
+<footer className="activity-registration-modal-footer">
+  <button
+    type="button"
+    onClick={() =>
+      setRegistrationModalActivity(null)
+    }
+    className="activity-registration-close"
+  >
+    Đóng
+  </button>
+
+  <Link
+    href={
+      `/dashboard/activities/` +
+      registrationModalActivity.id +
+      `/attendance`
+    }
+    className="activity-registration-attendance-link"
+    onClick={() =>
+      setRegistrationModalActivity(null)
+    }
+  >
+    <ClipboardCheck size={17} />
+    <span>Mở điểm danh</span>
+    <ArrowRight size={16} />
+  </Link>
+</footer>
+
+          </section>
+
+        </div>
+      )}
+
+
+      {/* =====================================================
+          CREATE / EDIT MODAL
+      ===================================================== */}
 
       {modalOpen && (
         <div
@@ -1308,11 +1832,12 @@ function getActivityRegistrations(activityId: string) {
                 </h2>
 
                 <p>
-                  Thiết lập lịch, địa điểm và
-                  trạng thái cho hoạt động.
+                  Thiết lập lịch, địa điểm,
+                  trạng thái và nội dung hoạt động.
                 </p>
 
               </div>
+
 
               <button
                 type="button"
@@ -1327,9 +1852,7 @@ function getActivityRegistrations(activityId: string) {
 
 
             <form
-              onSubmit={
-                handleSubmit
-              }
+              onSubmit={handleSubmit}
               className="activities-modal-form"
             >
 
@@ -1430,6 +1953,7 @@ function getActivityRegistrations(activityId: string) {
                     )
                   }
                 >
+
                   <option value="scheduled">
                     Sắp diễn ra
                   </option>
@@ -1445,6 +1969,7 @@ function getActivityRegistrations(activityId: string) {
                   <option value="cancelled">
                     Đã hủy
                   </option>
+
                 </select>
 
               </div>
@@ -1475,8 +2000,9 @@ function getActivityRegistrations(activityId: string) {
                 <CircleAlert size={17} />
 
                 <span>
-                  Hoạt động sẽ được lưu trực tiếp
-                  vào hệ thống lịch sinh hoạt của Chi đoàn.
+                  Hoạt động được lưu trực tiếp
+                  vào hệ thống lịch sinh hoạt
+                  của Chi đoàn.
                 </span>
 
               </div>
@@ -1498,6 +2024,7 @@ function getActivityRegistrations(activityId: string) {
                   disabled={saving}
                   className="activities-dashboard-primary"
                 >
+
                   {saving ? (
                     <>
                       <span className="activities-spinner" />
@@ -1506,11 +2033,13 @@ function getActivityRegistrations(activityId: string) {
                   ) : (
                     <>
                       <CheckCircle2 size={17} />
+
                       {editingId
                         ? "Lưu thay đổi"
                         : "Tạo hoạt động"}
                     </>
                   )}
+
                 </button>
 
               </div>
@@ -1526,12 +2055,85 @@ function getActivityRegistrations(activityId: string) {
   );
 }
 
+
+/* =========================================================
+   ACTIVITY STAT
+========================================================= */
+
+function ActivityStat({
+  icon,
+  tone,
+  label,
+  value,
+  detail,
+  active,
+  onClick,
+  disabled = false,
+}: {
+  icon: ReactNode;
+  tone:
+    | "blue"
+    | "green"
+    | "emerald"
+    | "red"
+    | "purple"
+    | "teal";
+  label: string;
+  value: string | number;
+  detail: string;
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`activity-stat-card ${
+        active ? "active" : ""
+      } ${disabled ? "disabled" : ""}`}
+    >
+
+      <div
+        className={`activity-stat-icon activity-stat-${tone}`}
+      >
+        {icon}
+      </div>
+
+      <div>
+
+        <span>
+          {label}
+        </span>
+
+        <strong>
+          {value}
+        </strong>
+
+        <small>
+          {detail}
+        </small>
+
+      </div>
+
+    </button>
+  );
+}
+
+
+/* =========================================================
+   DATETIME LOCAL
+========================================================= */
+
 function toDatetimeLocal(
   value: string
 ) {
   const date = new Date(value);
 
-  const pad = (number: number) =>
+  const pad = (
+    number: number
+  ) =>
     String(number).padStart(
       2,
       "0"
@@ -1548,61 +2150,83 @@ function toDatetimeLocal(
   )}`;
 }
 
+
+/* =========================================================
+   DATE
+========================================================= */
+
 function formatDay(
   value: string
 ) {
-  return new Date(value).getDate();
+  return new Date(value)
+    .getDate();
 }
 
 function formatMonth(
   value: string
 ) {
-  return new Date(
-    value
-  ).toLocaleDateString(
-    "vi-VN",
-    {
-      month: "short",
-    }
-  );
+  return new Date(value)
+    .toLocaleDateString(
+      "vi-VN",
+      {
+        month: "short",
+      }
+    );
 }
 
 function formatYear(
   value: string
 ) {
-  return new Date(
-    value
-  ).getFullYear();
+  return new Date(value)
+    .getFullYear();
 }
 
 function formatDateTime(
   value: string
 ) {
-  return new Date(
-    value
-  ).toLocaleDateString(
-    "vi-VN",
-    {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  return new Date(value)
+    .toLocaleDateString(
+      "vi-VN",
+      {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
 }
 
 function formatTime(
   value: string
 ) {
-  return new Date(
-    value
-  ).toLocaleTimeString(
-    "vi-VN",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  return new Date(value)
+    .toLocaleTimeString(
+      "vi-VN",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+}
+
+
+/* =========================================================
+   INITIALS
+========================================================= */
+
+function getInitials(
+  name: string
+) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map(
+      (part) =>
+        part[0] ?? ""
+    )
+    .join("")
+    .toUpperCase();
 }
