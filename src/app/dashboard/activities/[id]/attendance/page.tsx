@@ -54,7 +54,11 @@ type AttendanceRow = {
   note: string;
 };
 
-type FilterMode = "all" | "present" | "absent" | "pending";
+type FilterMode =
+  | "all"
+  | "present"
+  | "absent"
+  | "pending";
 
 export default function AttendancePage() {
   const params = useParams();
@@ -62,18 +66,35 @@ export default function AttendancePage() {
 
   const activityId = String(params.id);
 
-  const [activity, setActivity] = useState<Activity | null>(null);
-  const [rows, setRows] = useState<AttendanceRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
-const [qrLoading, setQrLoading] = useState(false);
-const [qrToken, setQrToken] = useState("");
-const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
-  null
-);
-  const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [activity, setActivity] =
+    useState<Activity | null>(null);
+
+  const [rows, setRows] =
+    useState<AttendanceRow[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [qrOpen, setQrOpen] =
+    useState(false);
+
+  const [qrLoading, setQrLoading] =
+    useState(false);
+
+  const [qrToken, setQrToken] =
+    useState("");
+
+  const [qrExpiresAt, setQrExpiresAt] =
+    useState<number | null>(null);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [filterMode, setFilterMode] =
+    useState<FilterMode>("all");
 
   async function load() {
     setLoading(true);
@@ -87,106 +108,180 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
     ] = await Promise.all([
       supabase
         .from("activities")
-        .select("id,title,start_at,end_at,location")
+        .select(
+          "id,title,start_at,end_at,location"
+        )
         .eq("id", activityId)
         .single(),
 
       supabase
         .from("members")
-        .select("id,student_id,full_name,class_name")
+        .select(
+          "id,student_id,full_name,class_name"
+        )
         .order("full_name"),
 
       supabase
         .from("activity_attendance")
-        .select("member_id,present,note")
-        .eq("activity_id", activityId),
+        .select(
+          "member_id,present,note"
+        )
+        .eq(
+          "activity_id",
+          activityId
+        ),
 
       supabase
         .from("activity_points")
-        .select("member_id,points,note")
-        .eq("activity_id", activityId),
+        .select(
+          "member_id,points,note"
+        )
+        .eq(
+          "activity_id",
+          activityId
+        ),
 
       supabase
         .from("activity_registrations")
-        .select("member_id,status")
-        .eq("activity_id", activityId)
-        .eq("status", "registered"),
+        .select(
+          "member_id,status"
+        )
+        .eq(
+          "activity_id",
+          activityId
+        )
+        .eq(
+          "status",
+          "registered"
+        ),
     ]);
 
-    if (activityResult.error || !activityResult.data) {
-      toast.error("Không tìm thấy hoạt động.");
+    if (
+      activityResult.error ||
+      !activityResult.data
+    ) {
+      toast.error(
+        "Không tìm thấy hoạt động."
+      );
+
       setLoading(false);
       return;
     }
 
     if (membersResult.error) {
-      toast.error("Không thể tải danh sách đoàn viên.", {
-        description: membersResult.error.message,
-      });
+      toast.error(
+        "Không thể tải danh sách đoàn viên.",
+        {
+          description:
+            membersResult.error.message,
+        }
+      );
+
       setLoading(false);
       return;
     }
 
     if (attendanceResult.error) {
-      toast.error("Không thể tải dữ liệu điểm danh.", {
-        description: attendanceResult.error.message,
-      });
+      toast.error(
+        "Không thể tải dữ liệu điểm danh.",
+        {
+          description:
+            attendanceResult.error.message,
+        }
+      );
     }
 
     if (pointsResult.error) {
-      toast.error("Không thể tải điểm hoạt động.", {
-        description: pointsResult.error.message,
-      });
+      toast.error(
+        "Không thể tải điểm hoạt động.",
+        {
+          description:
+            pointsResult.error.message,
+        }
+      );
     }
 
     if (registrationResult.error) {
-      toast.error("Không thể tải danh sách đăng ký.", {
-        description: registrationResult.error.message,
-      });
+      toast.error(
+        "Không thể tải danh sách đăng ký.",
+        {
+          description:
+            registrationResult.error.message,
+        }
+      );
     }
 
     const attendanceMap = new Map(
-      (attendanceResult.data ?? []).map((item) => [
-        item.member_id,
-        item,
-      ])
+      (attendanceResult.data ?? []).map(
+        (item) => [
+          item.member_id,
+          item,
+        ]
+      )
     );
 
     const pointsMap = new Map(
-      (pointsResult.data ?? []).map((item) => [
-        item.member_id,
-        item,
-      ])
-    );
-
-    const registeredIds = new Set(
-      (registrationResult.data ?? []).map(
-        (item) => item.member_id
+      (pointsResult.data ?? []).map(
+        (item) => [
+          item.member_id,
+          item,
+        ]
       )
     );
 
-    setActivity(activityResult.data as Activity);
+    const registeredIds =
+      new Set(
+        (registrationResult.data ?? []).map(
+          (item) => item.member_id
+        )
+      );
+
+    setActivity(
+      activityResult.data as Activity
+    );
 
     setRows(
-      ((membersResult.data ?? []) as Member[]).map(
-        (member) => {
-          const attendance = attendanceMap.get(member.id);
-          const point = pointsMap.get(member.id);
+      (
+        (membersResult.data ??
+          []) as Member[]
+      ).map((member) => {
+        const attendance =
+          attendanceMap.get(
+            member.id
+          );
 
-          return {
-            member,
-            registered: registeredIds.has(member.id),
-            checked: Boolean(attendance),
-            present: Boolean(attendance?.present),
-            points: Number(point?.points ?? 0),
-            note: String(
-              point?.note ??
-                attendance?.note ??
-                ""
+        const point =
+          pointsMap.get(
+            member.id
+          );
+
+        return {
+          member,
+
+          registered:
+            registeredIds.has(
+              member.id
             ),
-          };
-        }
-      )
+
+          checked:
+            Boolean(attendance),
+
+          present:
+            Boolean(
+              attendance?.present
+            ),
+
+          points: Number(
+            point?.points ?? 0
+          ),
+
+          note: String(
+            point?.note ??
+              attendance?.note ??
+              ""
+          ),
+        };
+      })
     );
 
     setLoading(false);
@@ -197,38 +292,70 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
   }, [activityId]);
 
   const stats = useMemo(() => {
-    const total = rows.length;
-    const registered = rows.filter(
-      (row) => row.registered
-    ).length;
+    const total =
+      rows.length;
 
-    const checked = rows.filter(
-      (row) => row.checked
-    ).length;
+    const registered =
+      rows.filter(
+        (row) =>
+          row.registered
+      ).length;
 
-    const present = rows.filter(
-      (row) => row.checked && row.present
-    ).length;
+    const checked =
+      rows.filter(
+        (row) =>
+          row.checked
+      ).length;
 
-    const absent = rows.filter(
-      (row) => row.checked && !row.present
-    ).length;
+    const present =
+      rows.filter(
+        (row) =>
+          row.checked &&
+          row.present
+      ).length;
 
-    const pending = rows.filter(
-      (row) => !row.checked
-    ).length;
+    const absent =
+      rows.filter(
+        (row) =>
+          row.checked &&
+          !row.present
+      ).length;
+
+    const pending =
+      rows.filter(
+        (row) =>
+          !row.checked
+      ).length;
 
     const rate = total
-      ? Math.round((present / total) * 100)
+      ? Math.round(
+          (present / total) *
+            100
+        )
       : 0;
 
     const checkedRate = total
-      ? Math.round((checked / total) * 100)
+      ? Math.round(
+          (checked / total) *
+            100
+        )
       : 0;
 
-    const registeredAttendanceRate = registered
-      ? Math.round((present / registered) * 100)
-      : 0;
+    /*
+     * TỶ LỆ CÓ MẶT:
+     * số người có mặt / tổng số đoàn viên
+     *
+     * Ví dụ:
+     * 1/45 = 2%
+     * 45/45 = 100%
+     */
+    const registeredAttendanceRate =
+      total
+        ? Math.round(
+            (present / total) *
+              100
+          )
+        : 0;
 
     return {
       total,
@@ -244,64 +371,98 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
   }, [rows]);
 
   const filteredRows = useMemo(() => {
-    const keyword = search
-      .trim()
-      .toLowerCase();
+    const keyword =
+      search
+        .trim()
+        .toLowerCase();
 
-    return rows.filter((row) => {
-      const matchesSearch =
-        !keyword ||
-        row.member.full_name
-          .toLowerCase()
-          .includes(keyword) ||
-        row.member.student_id
-          .toLowerCase()
-          .includes(keyword) ||
-        row.member.class_name
-          .toLowerCase()
-          .includes(keyword);
+    return rows.filter(
+      (row) => {
+        const matchesSearch =
+          !keyword ||
+          row.member.full_name
+            .toLowerCase()
+            .includes(keyword) ||
+          row.member.student_id
+            .toLowerCase()
+            .includes(keyword) ||
+          row.member.class_name
+            .toLowerCase()
+            .includes(keyword);
 
-      let matchesFilter = true;
+        let matchesFilter = true;
 
-      if (filterMode === "present") {
-        matchesFilter =
-          row.checked && row.present;
+        if (
+          filterMode ===
+          "present"
+        ) {
+          matchesFilter =
+            row.checked &&
+            row.present;
+        }
+
+        if (
+          filterMode ===
+          "absent"
+        ) {
+          matchesFilter =
+            row.checked &&
+            !row.present;
+        }
+
+        if (
+          filterMode ===
+          "pending"
+        ) {
+          matchesFilter =
+            !row.checked;
+        }
+
+        return (
+          matchesSearch &&
+          matchesFilter
+        );
       }
-
-      if (filterMode === "absent") {
-        matchesFilter =
-          row.checked && !row.present;
-      }
-
-      if (filterMode === "pending") {
-        matchesFilter = !row.checked;
-      }
-
-      return matchesSearch && matchesFilter;
-    });
-  }, [rows, search, filterMode]);
-
-  function setAll(value: boolean) {
-    setRows((current) =>
-      current.map((row) => ({
-        ...row,
-        checked: true,
-        present: value,
-      }))
     );
-  }
+  }, [
+    rows,
+    search,
+    filterMode,
+  ]);
 
-  function setRegisteredOnly(value: boolean) {
+  function setAll(
+    value: boolean
+  ) {
     setRows((current) =>
-      current.map((row) => {
-        if (!row.registered) return row;
-
-        return {
+      current.map(
+        (row) => ({
           ...row,
           checked: true,
           present: value,
-        };
-      })
+        })
+      )
+    );
+  }
+
+  function setRegisteredOnly(
+    value: boolean
+  ) {
+    setRows((current) =>
+      current.map(
+        (row) => {
+          if (
+            !row.registered
+          ) {
+            return row;
+          }
+
+          return {
+            ...row,
+            checked: true,
+            present: value,
+          };
+        }
+      )
     );
   }
 
@@ -310,13 +471,15 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
     patch: Partial<AttendanceRow>
   ) {
     setRows((current) =>
-      current.map((row) =>
-        row.member.id === id
-          ? {
-              ...row,
-              ...patch,
-            }
-          : row
+      current.map(
+        (row) =>
+          row.member.id ===
+          id
+            ? {
+                ...row,
+                ...patch,
+              }
+            : row
       )
     );
   }
@@ -326,41 +489,57 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
 
     setSaving(true);
 
-    const checkedAt = new Date().toISOString();
+    const checkedAt =
+      new Date().toISOString();
 
-    const attendancePayload = rows.map(
-      (row) => ({
-        activity_id: activityId,
-        member_id: row.member.id,
-        present: row.present,
-        checked_at: checkedAt,
-        note:
-          row.note.trim() || null,
-      })
-    );
+    const attendancePayload =
+      rows.map(
+        (row) => ({
+          activity_id:
+            activityId,
+          member_id:
+            row.member.id,
+          present:
+            row.present,
+          checked_at:
+            checkedAt,
+          note:
+            row.note.trim() ||
+            null,
+        })
+      );
 
-    const pointsPayload = rows.map(
-      (row) => ({
-        activity_id: activityId,
-        member_id: row.member.id,
-        points: Math.max(
-          0,
-          Math.min(
-            30,
-            Number(row.points) || 0
-          )
-        ),
-        note:
-          row.note.trim() || null,
-      })
-    );
+    const pointsPayload =
+      rows.map(
+        (row) => ({
+          activity_id:
+            activityId,
+          member_id:
+            row.member.id,
+          points:
+            Math.max(
+              0,
+              Math.min(
+                30,
+                Number(
+                  row.points
+                ) || 0
+              )
+            ),
+          note:
+            row.note.trim() ||
+            null,
+        })
+      );
 
     const [
       attendanceResult,
       pointsResult,
     ] = await Promise.all([
       supabase
-        .from("activity_attendance")
+        .from(
+          "activity_attendance"
+        )
         .upsert(
           attendancePayload,
           {
@@ -370,7 +549,9 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
         ),
 
       supabase
-        .from("activity_points")
+        .from(
+          "activity_points"
+        )
         .upsert(
           pointsPayload,
           {
@@ -388,10 +569,10 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
         "Chưa thể lưu đầy đủ dữ liệu.",
         {
           description:
-            attendanceResult.error
-              ?.message ||
-            pointsResult.error
-              ?.message ||
+            attendanceResult
+              .error?.message ||
+            pointsResult
+              .error?.message ||
             "Lỗi không xác định",
         }
       );
@@ -406,125 +587,179 @@ const [qrExpiresAt, setQrExpiresAt] = useState<number | null>(
     setSaving(false);
   }
 
-async function openQr() {
-  if (qrLoading) return;
+  async function openQr() {
+    if (qrLoading) return;
 
-  setQrLoading(true);
-  setQrToken("");
-  setQrExpiresAt(null);
-
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      toast.error("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const timeout = window.setTimeout(() => {
-      controller.abort();
-    }, 10000);
+    setQrLoading(true);
+    setQrToken("");
+    setQrExpiresAt(null);
 
     try {
-      const response = await fetch(
-        "/api/attendance/qr",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+      const {
+        data: {
+          session,
+        },
+      } =
+        await supabase.auth.getSession();
+
+      if (
+        !session?.access_token
+      ) {
+        toast.error(
+          "Phiên đăng nhập đã hết. Vui lòng đăng nhập lại."
+        );
+        return;
+      }
+
+      const controller =
+        new AbortController();
+
+      const timeout =
+        window.setTimeout(
+          () => {
+            controller.abort();
           },
-          body: JSON.stringify({
-            activityId: activity?.id,
-          }),
-          cache: "no-store",
-          signal: controller.signal,
+          10000
+        );
+
+      try {
+        const response =
+          await fetch(
+            "/api/attendance/qr",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+                Authorization:
+                  `Bearer ${session.access_token}`,
+              },
+
+              body: JSON.stringify({
+                activityId:
+                  activity?.id,
+              }),
+
+              cache: "no-store",
+              signal:
+                controller.signal,
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              () => ({})
+            );
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error ||
+              "Không thể tạo mã QR điểm danh."
+          );
         }
-      );
 
-      const data = await response.json().catch(() => ({}));
+        if (!data?.token) {
+          throw new Error(
+            "API không trả về mã QR."
+          );
+        }
 
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Không thể tạo mã QR điểm danh."
+        setQrToken(
+          data.token
+        );
+
+        setQrExpiresAt(
+          typeof data.expiresAt ===
+            "number"
+            ? data.expiresAt
+            : null
+        );
+
+        setQrOpen(true);
+      } finally {
+        window.clearTimeout(
+          timeout
         );
       }
+    } catch (error) {
+      console.error(
+        "[OPEN QR]",
+        error
+      );
 
-      if (!data?.token) {
-        throw new Error(
-          "API không trả về mã QR."
+      if (
+        error instanceof
+          DOMException &&
+        error.name ===
+          "AbortError"
+      ) {
+        toast.error(
+          "Tạo mã QR quá lâu. Vui lòng thử lại."
+        );
+      } else {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể tạo mã QR."
         );
       }
-
-      setQrToken(data.token);
-      setQrExpiresAt(
-        typeof data.expiresAt === "number"
-          ? data.expiresAt
-          : null
-      );
-      setQrOpen(true);
     } finally {
-      window.clearTimeout(timeout);
+      setQrLoading(false);
     }
-  } catch (error) {
-    console.error("[OPEN QR]", error);
-
-    if (
-      error instanceof DOMException &&
-      error.name === "AbortError"
-    ) {
-      toast.error(
-        "Tạo mã QR quá lâu. Vui lòng thử lại."
-      );
-    } else {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Không thể tạo mã QR."
-      );
-    }
-  } finally {
-    setQrLoading(false);
   }
-}
 
   function exportExcel() {
     if (!activity) return;
 
-    const data = rows.map(
-      (row, index) => ({
-        STT: index + 1,
-        "Mã sinh viên":
-          row.member.student_id,
-        "Họ và tên":
-          row.member.full_name,
-        Lớp: row.member.class_name,
-        "Đăng ký": row.registered
-          ? "Đã đăng ký"
-          : "Chưa đăng ký",
-        "Trạng thái":
-          !row.checked
-            ? "Chưa điểm danh"
-            : row.present
-            ? "Có mặt"
-            : "Vắng",
-        "Điểm hoạt động":
-          row.points,
-        "Ghi chú":
-          row.note,
-      })
-    );
+    const data =
+      rows.map(
+        (
+          row,
+          index
+        ) => ({
+          STT: index + 1,
+
+          "Mã sinh viên":
+            row.member
+              .student_id,
+
+          "Họ và tên":
+            row.member
+              .full_name,
+
+          Lớp:
+            row.member
+              .class_name,
+
+          "Đăng ký":
+            row.registered
+              ? "Đã đăng ký"
+              : "Chưa đăng ký",
+
+          "Trạng thái":
+            !row.checked
+              ? "Chưa điểm danh"
+              : row.present
+              ? "Có mặt"
+              : "Vắng",
+
+          "Điểm hoạt động":
+            row.points,
+
+          "Ghi chú":
+            row.note,
+        })
+      );
 
     const workbook =
       XLSX.utils.book_new();
 
     const worksheet =
-      XLSX.utils.json_to_sheet(data);
+      XLSX.utils.json_to_sheet(
+        data
+      );
 
     worksheet["!cols"] = [
       { wch: 7 },
@@ -554,13 +789,17 @@ async function openQr() {
           /[^a-zA-Z0-9]+/g,
           "-"
         )
-        .replace(/^-|-$/g, "")
+        .replace(
+          /^-|-$/g,
+          ""
+        )
         .slice(0, 50);
 
     XLSX.writeFile(
       workbook,
       `diem-danh-${
-        safeTitle || "hoat-dong"
+        safeTitle ||
+        "hoat-dong"
       }.xlsx`
     );
 
@@ -574,14 +813,17 @@ async function openQr() {
   ) {
     return new Date(
       value
-    ).toLocaleString("vi-VN", {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    ).toLocaleString(
+      "vi-VN",
+      {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
   }
 
   function getInitial(
@@ -594,7 +836,8 @@ async function openQr() {
         .filter(Boolean)
         .pop()
         ?.charAt(0)
-        .toUpperCase() || "Đ"
+        .toUpperCase() ||
+      "Đ"
     );
   }
 
@@ -626,9 +869,11 @@ async function openQr() {
   return (
     <main className="attendance-page">
       <div className="attendance-shell">
+
         {/* =====================================================
             TOP NAV
         ===================================================== */}
+
         <div className="attendance-topbar">
           <button
             type="button"
@@ -649,23 +894,33 @@ async function openQr() {
           </button>
 
           <div className="attendance-top-actions">
-            <button
-  type="button"
-  onClick={() => void openQr()}
-  disabled={qrLoading}
-  className="attendance-qr-button"
->
-  <QrCode size={16} />
-  <span>
-    {qrLoading ? "ĐANG TẠO QR..." : "MỞ QR ĐIỂM DANH"}
-  </span>
-</button>
+
             <button
               type="button"
-              onClick={exportExcel}
+              onClick={() =>
+                void openQr()
+              }
+              disabled={qrLoading}
+              className="attendance-qr-button"
+            >
+              <QrCode size={16} />
+
+              <span>
+                {qrLoading
+                  ? "ĐANG TẠO QR..."
+                  : "MỞ QR ĐIỂM DANH"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                exportExcel
+              }
               className="attendance-export"
             >
               <Download size={16} />
+
               <span>
                 Xuất Excel
               </span>
@@ -673,7 +928,9 @@ async function openQr() {
 
             <button
               type="button"
-              onClick={() => void save()}
+              onClick={() =>
+                void save()
+              }
               disabled={saving}
               className="attendance-save-top"
             >
@@ -691,6 +948,7 @@ async function openQr() {
         {/* =====================================================
             HERO
         ===================================================== */}
+
         <section className="attendance-hero">
           <div className="attendance-hero-pattern" />
           <div className="attendance-hero-glow one" />
@@ -777,6 +1035,7 @@ async function openQr() {
           <div className="attendance-hero-score">
             <div className="attendance-score-ring">
               <div className="attendance-score-inner">
+
                 <strong>
                   {stats.registeredAttendanceRate}
                   <small>%</small>
@@ -791,8 +1050,7 @@ async function openQr() {
             <div className="attendance-score-caption">
               <strong>
                 {stats.present}/
-                {stats.registered ||
-                  stats.total}
+                {stats.total}
               </strong>
 
               <span>
@@ -805,7 +1063,9 @@ async function openQr() {
         {/* =====================================================
             SUMMARY
         ===================================================== */}
+
         <section className="attendance-summary">
+
           <SummaryCard
             icon={
               <Users size={19} />
@@ -863,11 +1123,13 @@ async function openQr() {
             }
             tone="amber"
           />
+
         </section>
 
         {/* =====================================================
             PROGRESS
         ===================================================== */}
+
         <section className="attendance-progress-card">
           <div className="attendance-progress-head">
             <div>
@@ -895,9 +1157,12 @@ async function openQr() {
           </div>
 
           <div className="attendance-progress-bottom">
+
             <span>
               <i className="progress-dot done" />
+
               Đã xử lý{" "}
+
               <strong>
                 {stats.checked}
               </strong>
@@ -905,7 +1170,9 @@ async function openQr() {
 
             <span>
               <i className="progress-dot pending" />
+
               Chưa xử lý{" "}
+
               <strong>
                 {stats.pending}
               </strong>
@@ -913,20 +1180,26 @@ async function openQr() {
 
             <span>
               <i className="progress-dot registered" />
+
               Đăng ký{" "}
+
               <strong>
                 {stats.registered}
               </strong>
             </span>
+
           </div>
         </section>
 
         {/* =====================================================
             MAIN TABLE CARD
         ===================================================== */}
+
         <section className="attendance-card">
+
           <div className="attendance-card-header">
             <div>
+
               <div className="section-kicker">
                 DANH SÁCH ĐOÀN VIÊN
               </div>
@@ -940,9 +1213,11 @@ async function openQr() {
                 có mặt và nhập điểm hoạt động
                 cho từng đoàn viên.
               </p>
+
             </div>
 
             <div className="attendance-header-count">
+
               <strong>
                 {filteredRows.length}
               </strong>
@@ -950,21 +1225,29 @@ async function openQr() {
               <span>
                 kết quả
               </span>
+
             </div>
           </div>
 
           {/* ===================================================
               TOOLBAR
           =================================================== */}
+
           <div className="attendance-toolbar">
+
             <div className="attendance-search">
               <Search size={17} />
 
               <input
-                value={search}
-                onChange={(event) =>
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearch(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Tìm theo tên, mã sinh viên hoặc lớp..."
@@ -972,20 +1255,27 @@ async function openQr() {
             </div>
 
             <div className="attendance-filters">
+
               <FilterButton
                 active={
-                  filterMode === "all"
+                  filterMode ===
+                  "all"
                 }
                 onClick={() =>
-                  setFilterMode("all")
+                  setFilterMode(
+                    "all"
+                  )
                 }
                 label="Tất cả"
-                count={stats.total}
+                count={
+                  stats.total
+                }
               />
 
               <FilterButton
                 active={
-                  filterMode === "present"
+                  filterMode ===
+                  "present"
                 }
                 onClick={() =>
                   setFilterMode(
@@ -1001,7 +1291,8 @@ async function openQr() {
 
               <FilterButton
                 active={
-                  filterMode === "absent"
+                  filterMode ===
+                  "absent"
                 }
                 onClick={() =>
                   setFilterMode(
@@ -1009,13 +1300,16 @@ async function openQr() {
                   )
                 }
                 label="Vắng"
-                count={stats.absent}
+                count={
+                  stats.absent
+                }
                 tone="red"
               />
 
               <FilterButton
                 active={
-                  filterMode === "pending"
+                  filterMode ===
+                  "pending"
                 }
                 onClick={() =>
                   setFilterMode(
@@ -1028,14 +1322,18 @@ async function openQr() {
                 }
                 tone="amber"
               />
+
             </div>
           </div>
 
           {/* ===================================================
               BULK ACTIONS
           =================================================== */}
+
           <div className="attendance-bulk">
+
             <div className="attendance-bulk-info">
+
               <div className="attendance-bulk-icon">
                 <CheckCheck
                   size={17}
@@ -1043,6 +1341,7 @@ async function openQr() {
               </div>
 
               <div>
+
                 <strong>
                   Thao tác nhanh
                 </strong>
@@ -1051,14 +1350,18 @@ async function openQr() {
                   Chọn trạng thái cho
                   nhiều đoàn viên cùng lúc.
                 </span>
+
               </div>
             </div>
 
             <div className="attendance-bulk-actions">
+
               <button
                 type="button"
                 onClick={() =>
-                  setRegisteredOnly(true)
+                  setRegisteredOnly(
+                    true
+                  )
                 }
                 className="bulk-button registered"
               >
@@ -1072,7 +1375,9 @@ async function openQr() {
               <button
                 type="button"
                 onClick={() =>
-                  setRegisteredOnly(false)
+                  setRegisteredOnly(
+                    false
+                  )
                 }
                 className="bulk-button neutral"
               >
@@ -1089,6 +1394,7 @@ async function openQr() {
                 <CheckCheck
                   size={15}
                 />
+
                 Có mặt tất cả
               </button>
 
@@ -1100,16 +1406,21 @@ async function openQr() {
                 className="bulk-button red"
               >
                 <UserX size={15} />
+
                 Vắng tất cả
               </button>
+
             </div>
           </div>
 
           {/* ===================================================
               TABLE
           =================================================== */}
+
           <div className="attendance-table-wrap">
+
             <div className="attendance-table-head">
+
               <div className="col-person">
                 ĐOÀN VIÊN
               </div>
@@ -1133,11 +1444,17 @@ async function openQr() {
               <div className="col-note">
                 GHI CHÚ
               </div>
+
             </div>
 
             <div className="attendance-table-body">
+
               {filteredRows.map(
-                (row, index) => {
+                (
+                  row,
+                  index
+                ) => {
+
                   const status =
                     !row.checked
                       ? "pending"
@@ -1148,16 +1465,23 @@ async function openQr() {
                   return (
                     <article
                       key={
-                        row.member.id
+                        row
+                          .member
+                          .id
                       }
                       className={`attendance-row ${status}`}
                     >
+
                       {/* PERSON */}
+
                       <div className="col-person">
+
                         <div className="attendance-person">
+
                           <span className="attendance-index">
                             {String(
-                              index + 1
+                              index +
+                                1
                             ).padStart(
                               2,
                               "0"
@@ -1165,16 +1489,15 @@ async function openQr() {
                           </span>
 
                           <div className="attendance-avatar">
-                            {
-                              getInitial(
-                                row
-                                  .member
-                                  .full_name
-                              )
-                            }
+                            {getInitial(
+                              row
+                                .member
+                                .full_name
+                            )}
                           </div>
 
                           <div className="attendance-person-info">
+
                             <strong>
                               {
                                 row
@@ -1190,24 +1513,33 @@ async function openQr() {
                                   .student_id
                               }
                             </span>
+
                           </div>
                         </div>
+
                       </div>
 
                       {/* CLASS */}
+
                       <div className="col-class">
+
                         <span className="class-badge">
                           {
-                            row.member
+                            row
+                              .member
                               .class_name
                           }
                         </span>
+
                       </div>
 
                       {/* REGISTERED */}
+
                       <div className="col-register">
+
                         {row.registered ? (
                           <span className="registration-badge yes">
+
                             <CheckCircle2
                               size={
                                 14
@@ -1215,22 +1547,29 @@ async function openQr() {
                             />
 
                             Đã đăng ký
+
                           </span>
                         ) : (
                           <span className="registration-badge no">
                             Chưa đăng ký
                           </span>
                         )}
+
                       </div>
 
                       {/* STATUS */}
+
                       <div className="col-status">
+
                         <div className="attendance-status-buttons">
+
                           <button
                             type="button"
                             onClick={() =>
                               updateRow(
-                                row.member.id,
+                                row
+                                  .member
+                                  .id,
                                 {
                                   checked:
                                     true,
@@ -1259,7 +1598,9 @@ async function openQr() {
                             type="button"
                             onClick={() =>
                               updateRow(
-                                row.member.id,
+                                row
+                                  .member
+                                  .id,
                                 {
                                   checked:
                                     true,
@@ -1283,6 +1624,7 @@ async function openQr() {
 
                             Vắng
                           </button>
+
                         </div>
 
                         {status ===
@@ -1291,19 +1633,19 @@ async function openQr() {
                             Chưa xác nhận
                           </span>
                         )}
+
                       </div>
 
                       {/* POINTS */}
+
                       <div className="col-points">
+
                         <div className="points-input">
+
                           <input
                             type="number"
-                            min={
-                              0
-                            }
-                            max={
-                              30
-                            }
+                            min={0}
+                            max={30}
                             value={
                               row.points
                             }
@@ -1311,7 +1653,9 @@ async function openQr() {
                               event
                             ) =>
                               updateRow(
-                                row.member.id,
+                                row
+                                  .member
+                                  .id,
                                 {
                                   points:
                                     Math.max(
@@ -1334,11 +1678,14 @@ async function openQr() {
                           <span>
                             /30
                           </span>
+
                         </div>
                       </div>
 
                       {/* NOTE */}
+
                       <div className="col-note">
+
                         <input
                           value={
                             row.note
@@ -1347,17 +1694,22 @@ async function openQr() {
                             event
                           ) =>
                             updateRow(
-                              row.member.id,
+                              row
+                                .member
+                                .id,
                               {
-                                note: event
-                                  .target
-                                  .value,
+                                note:
+                                  event
+                                    .target
+                                    .value,
                               }
                             )
                           }
                           placeholder="Nhập ghi chú..."
                         />
+
                       </div>
+
                     </article>
                   );
                 }
@@ -1366,6 +1718,7 @@ async function openQr() {
               {filteredRows.length ===
                 0 && (
                 <div className="attendance-empty">
+
                   <div className="attendance-empty-icon">
                     <Search
                       size={24}
@@ -1392,16 +1745,21 @@ async function openQr() {
                   >
                     Xóa bộ lọc
                   </button>
+
                 </div>
               )}
+
             </div>
           </div>
 
           {/* ===================================================
               FOOTER ACTION
           =================================================== */}
+
           <div className="attendance-card-footer">
+
             <div className="attendance-footer-note">
+
               <div className="attendance-footer-icon">
                 <ClipboardCheck
                   size={17}
@@ -1409,6 +1767,7 @@ async function openQr() {
               </div>
 
               <div>
+
                 <strong>
                   Kiểm tra trước khi lưu
                 </strong>
@@ -1417,12 +1776,15 @@ async function openQr() {
                   Dữ liệu điểm danh và điểm hoạt động
                   sẽ được cập nhật vào hệ thống.
                 </span>
+
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => void save()}
+              onClick={() =>
+                void save()
+              }
               disabled={saving}
               className="attendance-main-save"
             >
@@ -1432,13 +1794,17 @@ async function openQr() {
                 ? "ĐANG LƯU..."
                 : "LƯU ĐIỂM DANH"}
             </button>
+
           </div>
+
         </section>
 
         {/* =====================================================
             FOOTER
         ===================================================== */}
+
         <footer className="attendance-footer">
+
           <span>
             CHI ĐOÀN D-K66
           </span>
@@ -1454,82 +1820,123 @@ async function openQr() {
           <span>
             {activity.title}
           </span>
+
         </footer>
+
       </div>
 
       <style jsx>{styles}</style>
-      {qrOpen && qrToken && (
-  <div
-    className="attendance-qr-overlay"
-    onClick={() => setQrOpen(false)}
-  >
-    <div
-      className="attendance-qr-modal"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="attendance-qr-modal-header">
-        <div>
-          <span className="section-kicker">
-            ĐIỂM DANH NHANH
-          </span>
 
-          <h2>Quét mã QR để điểm danh</h2>
+      {qrOpen &&
+        qrToken && (
+          <div
+            className="attendance-qr-overlay"
+            onClick={() =>
+              setQrOpen(
+                false
+              )
+            }
+          >
+            <div
+              className="attendance-qr-modal"
+              onClick={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
 
-          <p>{activity.title}</p>
-        </div>
+              <div className="attendance-qr-modal-header">
 
-        <button
-          type="button"
-          onClick={() => setQrOpen(false)}
-          className="attendance-qr-close"
-          aria-label="Đóng"
-        >
-          <X size={20} />
-        </button>
-      </div>
+                <div>
 
-      <div className="attendance-qr-code">
-        <QRCodeSVG
-          value={qrToken}
-          size={320}
-          level="M"
-          includeMargin
-        />
-      </div>
+                  <span className="section-kicker">
+                    ĐIỂM DANH NHANH
+                  </span>
 
-      <div className="attendance-qr-status">
-        <strong>QR đang hoạt động</strong>
+                  <h2>
+                    Quét mã QR để điểm danh
+                  </h2>
 
-        <span>
-          Mã có hiệu lực trong 10 phút.
-          {qrExpiresAt
-            ? ` Hết hạn lúc ${new Date(
-                qrExpiresAt
-              ).toLocaleTimeString("vi-VN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}.`
-            : ""}
-        </span>
-      </div>
+                  <p>
+                    {activity.title}
+                  </p>
 
-      <div className="attendance-qr-help">
-        Thành viên đăng nhập Cổng đoàn viên, quét mã và hệ
-        thống sẽ tự động ghi nhận có mặt.
-      </div>
+                </div>
 
-      <button
-        type="button"
-        onClick={() => void openQr()}
-        className="attendance-qr-refresh"
-      >
-        <QrCode size={16} />
-        Tạo mã QR mới
-      </button>
-    </div>
-  </div>
-)}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQrOpen(
+                      false
+                    )
+                  }
+                  className="attendance-qr-close"
+                  aria-label="Đóng"
+                >
+                  <X size={20} />
+                </button>
+
+              </div>
+
+              <div className="attendance-qr-code">
+                <QRCodeSVG
+                  value={
+                    qrToken
+                  }
+                  size={320}
+                  level="M"
+                  includeMargin
+                />
+              </div>
+
+              <div className="attendance-qr-status">
+
+                <strong>
+                  QR đang hoạt động
+                </strong>
+
+                <span>
+                  Mã có hiệu lực trong 10 phút.
+                  {qrExpiresAt
+                    ? ` Hết hạn lúc ${new Date(
+                        qrExpiresAt
+                      ).toLocaleTimeString(
+                        "vi-VN",
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        }
+                      )}.`
+                    : ""}
+                </span>
+
+              </div>
+
+              <div className="attendance-qr-help">
+                Thành viên đăng nhập Cổng đoàn viên, quét mã và hệ
+                thống sẽ tự động ghi nhận có mặt.
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void openQr()
+                }
+                className="attendance-qr-refresh"
+              >
+                <QrCode
+                  size={16}
+                />
+
+                Tạo mã QR mới
+              </button>
+
+            </div>
+          </div>
+        )}
+
     </main>
   );
 }
@@ -1559,7 +1966,9 @@ function SummaryCard({
     <article
       className={`summary-card ${tone}`}
     >
+
       <div className="summary-card-top">
+
         <div className="summary-icon">
           {icon}
         </div>
@@ -1567,9 +1976,11 @@ function SummaryCard({
         <span className="summary-label">
           {label}
         </span>
+
       </div>
 
       <div className="summary-card-bottom">
+
         <strong>
           {value}
         </strong>
@@ -1577,7 +1988,9 @@ function SummaryCard({
         <span>
           {sub}
         </span>
+
       </div>
+
     </article>
   );
 }
@@ -1608,9 +2021,12 @@ function FilterButton({
       type="button"
       onClick={onClick}
       className={`filter-button ${
-        active ? `active ${tone}` : ""
+        active
+          ? `active ${tone}`
+          : ""
       }`}
     >
+
       <span>
         {label}
       </span>
@@ -1618,6 +2034,7 @@ function FilterButton({
       <strong>
         {count}
       </strong>
+
     </button>
   );
 }

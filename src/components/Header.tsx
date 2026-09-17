@@ -1,65 +1,168 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, ShieldCheck, UserCircle2 } from "lucide-react";
+import {
+  Bell,
+  Menu,
+  ShieldCheck,
+  UserCircle2,
+} from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 export default function Header() {
   const { collapsed, setCollapsed } = useSidebar();
 
   return (
-    <header className="mb-8 flex min-h-20 items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm sm:px-6 lg:px-8">
+    <header
+      className="
+        mb-6
+        flex min-h-[88px]
+        items-center justify-between
+        rounded-2xl
+        border border-slate-200/80
+        bg-white
+        px-6 py-4
+        shadow-[0_8px_30px_rgba(15,23,42,0.06)]
+        backdrop-blur
+        sm:px-7
+        lg:px-9
+      "
+      style={{
+        fontFamily:
+          'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}
+    >
+      {/* =====================================================
+          BÊN TRÁI
+      ===================================================== */}
+      <div className="flex min-w-0 items-center gap-4">
 
-      {/* Bên trái */}
-      <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-
-        {/* Nút thu / mở Sidebar */}
+        {/* NÚT SIDEBAR */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="shrink-0 rounded-xl p-2 transition hover:bg-gray-100"
+          type="button"
+          onClick={() =>
+            setCollapsed(!collapsed)
+          }
+          className="
+            flex h-11 w-11
+            shrink-0
+            items-center justify-center
+            rounded-xl
+            border border-slate-200
+            bg-white
+            text-[#005BAC]
+            shadow-sm
+            transition
+            hover:bg-gray-100
+          "
           aria-label="Mở hoặc thu Sidebar"
         >
           <Menu
-            size={28}
-            className="text-[#005BAC]"
+            size={24}
+            strokeWidth={2}
           />
         </button>
 
+        {/* TÊN HỆ THỐNG */}
         <div className="min-w-0">
-          <h2 className="truncate text-base font-bold text-[#005BAC] sm:text-xl">
+
+          <h1
+            className="
+              truncate
+              text-[20px]
+              font-bold
+              leading-tight
+              tracking-[-0.02em]
+              text-slate-800
+              sm:text-[23px]
+            "
+          >
             Hệ thống quản lý Chi đoàn D-K66
-          </h2>
+          </h1>
 
-          <p className="hidden text-sm text-gray-500 sm:block">
-            Trường THPT Hà Trung
-          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+
+            <span
+              className="
+                h-1.5
+                w-1.5
+                shrink-0
+                rounded-full
+                bg-emerald-500
+              "
+            />
+
+            <p
+              className="
+                truncate
+                text-[14px]
+                font-normal
+                text-slate-500
+              "
+            >
+              Trường THPT Hà Trung
+            </p>
+
+          </div>
         </div>
-
       </div>
 
-      {/* Bên phải */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-6">
+      {/* =====================================================
+          BÊN PHẢI
+      ===================================================== */}
+      <div
+        className="
+          flex shrink-0
+          items-center
+          gap-3
+        "
+      >
 
-        {/* Thông báo */}
+        {/* =================================================
+            THÔNG BÁO
+        ================================================= */}
         <Link
           href="/dashboard/announcements"
-          className="relative rounded-xl p-2 transition hover:bg-gray-100"
+          className="
+            relative
+            flex h-11 w-11
+            items-center justify-center
+            rounded-xl
+            text-slate-700
+            transition
+            hover:bg-gray-100
+          "
           aria-label="Thông báo"
         >
           <Bell
             size={22}
-            className="text-gray-700 sm:h-6 sm:w-6"
+            strokeWidth={2}
           />
 
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 sm:right-2 sm:top-2" />
+          <span
+            className="
+              absolute
+              right-[7px]
+              top-[6px]
+              h-2.5
+              w-2.5
+              rounded-full
+              border-2
+              border-white
+              bg-red-500
+            "
+          />
         </Link>
 
-        {/* Nút Admin - đặc biệt hữu ích trên điện thoại */}
+        {/* =================================================
+            BCH / ADMIN
+            GIỮ KIỂU BAN ĐẦU
+        ================================================= */}
         <Link
           href="/admin"
           className="dashboard-admin-button"
           aria-label="Đăng nhập quản trị"
->
+        >
           <ShieldCheck size={18} />
 
           <span>
@@ -67,7 +170,9 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* Thông tin Admin */}
+        {/* =================================================
+            THÔNG TIN ADMIN
+        ================================================= */}
         <div className="hidden items-center gap-3 md:flex">
 
           <UserCircle2
@@ -76,19 +181,32 @@ export default function Header() {
           />
 
           <div>
-            <p className="font-semibold">
+
+            <p
+              className="
+                font-semibold
+                leading-tight
+                text-slate-800
+              "
+            >
               Admin
             </p>
 
-            <p className="text-sm text-gray-500">
+            <p
+              className="
+                mt-1
+                text-sm
+                leading-tight
+                text-gray-500
+              "
+            >
               BCH Chi Đoàn
             </p>
-          </div>
 
+          </div>
         </div>
 
       </div>
-
     </header>
   );
 }
