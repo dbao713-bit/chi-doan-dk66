@@ -127,7 +127,6 @@ function statusLabel(status: string) {
     ongoing: "Đang diễn ra",
     completed: "Đã hoàn thành",
     cancelled: "Đã hủy",
-
     new: "Mới",
     processing: "Đang xử lý",
     resolved: "Đã xử lý",
@@ -434,52 +433,52 @@ export default function PortalPage() {
   }, []);
 
   useEffect(() => {
-  const sectionIds = [
-    "overview",
-    "activities",
-    "score",
-    "history",
-    "feedback",
-    "documents",
-  ];
+    const sectionIds = [
+      "overview",
+      "activities",
+      "score",
+      "history",
+      "feedback",
+      "documents",
+    ];
 
-  const sections = sectionIds
-    .map((id) => document.getElementById(id))
-    .filter(
-      (element): element is HTMLElement =>
-        Boolean(element)
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(
+        (element): element is HTMLElement =>
+          Boolean(element)
+      );
+
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) =>
+              a.boundingClientRect.top -
+              b.boundingClientRect.top
+          );
+
+        if (visible[0]?.target.id) {
+          setActiveSection(
+            visible[0].target.id
+          );
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-18% 0px -62% 0px",
+        threshold: 0,
+      }
     );
 
-  if (!sections.length) return;
+    sections.forEach((section) =>
+      observer.observe(section)
+    );
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort(
-          (a, b) =>
-            a.boundingClientRect.top -
-            b.boundingClientRect.top
-        );
-
-      if (visible[0]?.target.id) {
-        setActiveSection(
-          visible[0].target.id
-        );
-      }
-    },
-    {
-      root: null,
-      rootMargin: "-18% 0px -62% 0px",
-      threshold: 0,
-    }
-  );
-
-  sections.forEach((section) =>
-    observer.observe(section)
-  );
-
-  return () => observer.disconnect();
+    return () => observer.disconnect();
   }, [loading]);
 
   async function signOut() {
@@ -672,32 +671,33 @@ export default function PortalPage() {
 
   return (
     <main
-  className={`member-portal-shell ${
-    sidebarCollapsed ? "sidebar-collapsed" : ""
-  }`}
->
+      className={`member-portal-shell ${
+        sidebarCollapsed ? "sidebar-collapsed" : ""
+      }`}
+    >
       <aside
-  className={`member-portal-sidebar ${
-    sidebarCollapsed ? "is-collapsed" : ""
-  }`}
->
+        className={`member-portal-sidebar ${
+          sidebarCollapsed ? "is-collapsed" : ""
+        }`}
+      >
         <div className="member-portal-sidebar-top">
           <button
-  type="button"
-  className="member-portal-sidebar-collapse"
-  onClick={() =>
-    setSidebarCollapsed(
-      (value) => !value
-    )
-  }
-  aria-label={
-    sidebarCollapsed
-      ? "Mở rộng thanh bên"
-      : "Thu gọn thanh bên"
-  }
->
-  {sidebarCollapsed ? "›" : "‹"}
-</button>
+            type="button"
+            className="member-portal-sidebar-collapse"
+            onClick={() =>
+              setSidebarCollapsed(
+                (value) => !value
+              )
+            }
+            aria-label={
+              sidebarCollapsed
+                ? "Mở rộng thanh bên"
+                : "Thu gọn thanh bên"
+            }
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+
           <Link
             href="/portal"
             className="member-portal-brand"
@@ -769,12 +769,12 @@ export default function PortalPage() {
             </a>
 
             <a
-  href="/portal/attendance/scan"
-  className="member-portal-nav-item member-portal-nav-qr"
->
-  <QrCode size={18} />
-  <span>Quét QR điểm danh</span>
-</a>
+              href="/portal/attendance/scan"
+              className="member-portal-nav-item member-portal-nav-qr"
+            >
+              <QrCode size={18} />
+              <span>Quét QR điểm danh</span>
+            </a>
 
             <a
               href="#score"
@@ -1445,9 +1445,6 @@ export default function PortalPage() {
           </section>
 
           <div className="member-portal-two-column lower">
-            {/* =================================================
-                FEEDBACK
-               ================================================= */}
             <section
               id="feedback"
               className="member-portal-panel member-portal-feedback-pro"
@@ -1699,144 +1696,138 @@ export default function PortalPage() {
                 </aside>
               </div>
 
-{/* =================================================
-    PHẢN HỒI TỪ BCH — COMPACT
-   ================================================= */}
-<div className="member-portal-feedback-replies-compact">
-  <div className="member-portal-feedback-replies-header">
-    <div>
-      <span>     PHẢN HỒI TỪ BAN CHẤP HÀNH</span>
+              <div className="member-portal-feedback-replies-compact">
+                <div className="member-portal-feedback-replies-header">
+                  <div>
+                    <span>     PHẢN HỒI TỪ BAN CHẤP HÀNH</span>
 
-      <h3>   Phản ánh & phản hồi</h3>
+                    <h3>   Phản ánh & phản hồi</h3>
 
-      <p>
-             Theo dõi các phản ánh bạn đã gửi và phản hồi chính thức
-        từ BCH.
-      </p>
-    </div>
+                    <p>
+                           Theo dõi các phản ánh bạn đã gửi và phản hồi chính thức
+                      từ BCH.
+                    </p>
+                  </div>
 
-    <div className="member-portal-panel-icon blue">
-      <MessageSquare size={18} />
-    </div>
-  </div>
-
-  {feedbackItems.length === 0 ? (
-    <div className="member-portal-feedback-empty">
-      <div className="member-portal-feedback-empty-icon">
-        <Inbox size={19} />
-      </div>
-
-      <div>
-        <strong>Chưa có phản ánh nào</strong>
-
-        <span>
-          Các phản ánh bạn gửi sẽ xuất hiện tại đây.
-        </span>
-      </div>
-    </div>
-  ) : (
-    <>
-      <div className="member-portal-feedback-compact-list">
-        {feedbackItems.slice(0, 3).map((item) => (
-          <details
-            key={item.id}
-            className="member-portal-feedback-compact-item"
-          >
-            <summary>
-              <div className="member-portal-feedback-compact-main">
-                <div className="member-portal-feedback-compact-title-row">
-                  <h4>{item.subject}</h4>
-
-                  <span
-                    className={`member-portal-feedback-status ${item.status}`}
-                  >
-                    {statusLabel(item.status)}
-                  </span>
+                  <div className="member-portal-panel-icon blue">
+                    <MessageSquare size={18} />
+                  </div>
                 </div>
 
-                <div className="member-portal-feedback-compact-meta">
-                  <span>
-                    {formatDateTime(item.created_at)}
-                  </span>
-
-                  <span>
-                    {item.member_response
-                      ? "Đã có phản hồi"
-                      : "Đang chờ phản hồi"}
-                  </span>
-                </div>
-              </div>
-
-              <ChevronRight
-                size={18}
-                className="member-portal-feedback-compact-arrow"
-              />
-            </summary>
-
-            <div className="member-portal-feedback-compact-content">
-              <div className="member-portal-feedback-compact-message">
-                <span>BẠN ĐÃ GỬI</span>
-
-                <p>{item.content}</p>
-              </div>
-
-              {item.member_response ? (
-                <div className="member-portal-feedback-compact-response">
-                  <div className="member-portal-feedback-compact-response-head">
-                    <div className="member-portal-feedback-compact-response-icon">
-                      <CheckCircle2 size={15} />
+                {feedbackItems.length === 0 ? (
+                  <div className="member-portal-feedback-empty">
+                    <div className="member-portal-feedback-empty-icon">
+                      <Inbox size={19} />
                     </div>
 
                     <div>
-                      <strong>
-                        Phản hồi từ Ban Chấp hành
-                      </strong>
+                      <strong>Chưa có phản ánh nào</strong>
 
-                      {item.responded_at && (
-                        <span>
-                          {formatDateTime(
-                            item.responded_at
-                          )}
-                        </span>
-                      )}
+                      <span>
+                        Các phản ánh bạn gửi sẽ xuất hiện tại đây.
+                      </span>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="member-portal-feedback-compact-list">
+                      {feedbackItems.slice(0, 3).map((item) => (
+                        <details
+                          key={item.id}
+                          className="member-portal-feedback-compact-item"
+                        >
+                          <summary>
+                            <div className="member-portal-feedback-compact-main">
+                              <div className="member-portal-feedback-compact-title-row">
+                                <h4>{item.subject}</h4>
 
-                  <p>{item.member_response}</p>
-                </div>
-              ) : (
-                <div className="member-portal-feedback-compact-pending">
-                  <Clock3 size={15} />
+                                <span
+                                  className={`member-portal-feedback-status ${item.status}`}
+                                >
+                                  {statusLabel(item.status)}
+                                </span>
+                              </div>
 
-                  <span>
-                    BCH chưa gửi phản hồi chính thức cho phản ánh này.
-                  </span>
-                </div>
-              )}
-            </div>
-          </details>
-        ))}
-      </div>
+                              <div className="member-portal-feedback-compact-meta">
+                                <span>
+                                  {formatDateTime(item.created_at)}
+                                </span>
 
-      {feedbackItems.length > 3 && (
-        <div className="member-portal-feedback-more">
-          <span>
-            Hiển thị 3 phản ánh gần nhất trong tài khoản.
-          </span>
+                                <span>
+                                  {item.member_response
+                                    ? "Đã có phản hồi"
+                                    : "Đang chờ phản hồi"}
+                                </span>
+                              </div>
+                            </div>
 
-          <strong>
-            Tổng cộng {feedbackItems.length} phản ánh
-          </strong>
-        </div>
-      )}
-    </>
-  )}
-</div>
+                            <ChevronRight
+                              size={18}
+                              className="member-portal-feedback-compact-arrow"
+                            />
+                          </summary>
+
+                          <div className="member-portal-feedback-compact-content">
+                            <div className="member-portal-feedback-compact-message">
+                              <span>BẠN ĐÃ GỬI</span>
+
+                              <p>{item.content}</p>
+                            </div>
+
+                            {item.member_response ? (
+                              <div className="member-portal-feedback-compact-response">
+                                <div className="member-portal-feedback-compact-response-head">
+                                  <div className="member-portal-feedback-compact-response-icon">
+                                    <CheckCircle2 size={15} />
+                                  </div>
+
+                                  <div>
+                                    <strong>
+                                      Phản hồi từ Ban Chấp hành
+                                    </strong>
+
+                                    {item.responded_at && (
+                                      <span>
+                                        {formatDateTime(
+                                          item.responded_at
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <p>{item.member_response}</p>
+                              </div>
+                            ) : (
+                              <div className="member-portal-feedback-compact-pending">
+                                <Clock3 size={15} />
+
+                                <span>
+                                  BCH chưa gửi phản hồi chính thức cho phản ánh này.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+
+                    {feedbackItems.length > 3 && (
+                      <div className="member-portal-feedback-more">
+                        <span>
+                          Hiển thị 3 phản ánh gần nhất trong tài khoản.
+                        </span>
+
+                        <strong>
+                          Tổng cộng {feedbackItems.length} phản ánh
+                        </strong>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </section>
 
-            {/* =================================================
-                DOCUMENTS
-               ================================================= */}
             <section
               id="documents"
               className="member-portal-panel"
@@ -1979,6 +1970,23 @@ export default function PortalPage() {
                 >
                   <CalendarDays size={18} />
                   Hoạt động
+                </a>
+
+                {/* QUÉT QR - MOBILE */}
+                <a
+                  href="/portal/attendance/scan"
+                  className="member-portal-mobile-qr"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <QrCode size={18} />
+
+                  <strong>
+                    Quét QR điểm danh
+                  </strong>
+
+                  <em>
+                    MỚI
+                  </em>
                 </a>
 
                 <a
