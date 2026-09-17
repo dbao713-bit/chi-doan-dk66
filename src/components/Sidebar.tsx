@@ -14,6 +14,7 @@ import {
   Trophy,
   KeyRound,
   MessageSquare,
+  CircleDollarSign,
 } from "lucide-react";
 
 import { useSidebar } from "@/context/SidebarContext";
@@ -44,6 +45,11 @@ const menuItems = [
     title: "Phản ánh & góp ý",
     icon: MessageSquare,
   },
+  {
+    href: "/dashboard/finance",
+    title: "Quỹ & đoàn phí",
+    icon: CircleDollarSign,
+  },
 ];
 
 const extensionItems = [
@@ -52,7 +58,6 @@ const extensionItems = [
     title: "Sinh hoạt",
     icon: CalendarDays,
   },
-
   {
     href: "/dashboard/documents",
     title: "Tài liệu",
@@ -63,7 +68,6 @@ const extensionItems = [
     title: "Thư viện",
     icon: Image,
   },
-
   {
     href: "/dashboard/frog-race",
     title: "Đua ếch",
@@ -78,7 +82,9 @@ export default function Sidebar() {
   return (
     <aside
       className={`dashboard-sidebar ${
-        collapsed ? "dashboard-sidebar-collapsed" : ""
+        collapsed
+          ? "dashboard-sidebar-collapsed"
+          : ""
       }`}
     >
       {/* BRAND */}
@@ -113,7 +119,9 @@ export default function Sidebar() {
               pathname === item.href ||
               (
                 item.href !== "/dashboard" &&
-                pathname.startsWith(item.href)
+                pathname.startsWith(
+                  item.href
+                )
               );
 
             return (
@@ -145,7 +153,9 @@ export default function Sidebar() {
 
             const active =
               pathname === item.href ||
-              pathname.startsWith(`${item.href}/`);
+              pathname.startsWith(
+                `${item.href}/`
+              );
 
             return (
               <SidebarItem
@@ -204,7 +214,11 @@ function SidebarItem({
           ? "dashboard-sidebar-item-collapsed"
           : ""
       }`}
-      title={collapsed ? title : undefined}
+      title={
+        collapsed
+          ? title
+          : undefined
+      }
     >
       <span className="dashboard-sidebar-item-icon">
         {icon}

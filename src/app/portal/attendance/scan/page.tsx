@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Camera,
   CheckCircle2,
+  ImageUp,
   Loader2,
   QrCode,
   RefreshCw,
@@ -20,11 +21,14 @@ type ScanState =
   | "ready"
   | "starting"
   | "scanning"
+  | "decoding"
   | "success"
   | "error";
 
 export default function ScanAttendancePage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const imageInputRef =
+  useRef<HTMLInputElement | null>(null);
   const readerRef = useRef<BrowserQRCodeReader | null>(null);
   const controlsRef = useRef<{
     stop: () => void;
@@ -265,6 +269,86 @@ export default function ScanAttendancePage() {
     stopScanner,
   ]);
 
+    const handleImageUpload = useCallback(
+    async (
+      event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      const file =
+        event.target.files?.[0];
+
+      event.target.value = "";
+
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        setScanState("error");
+        setMessage(
+          "Tệp đã chọn không phải là hình ảnh."
+        );
+        return;
+      }
+
+      const MAX_IMAGE_SIZE =
+        10 * 1024 * 1024;
+
+      if (file.size > MAX_IMAGE_SIZE) {
+        setScanState("error");
+        setMessage(
+          "Ảnh QR quá lớn. Vui lòng chọn ảnh dưới 10 MB."
+        );
+        return;
+      }
+
+      stopScanner();
+
+      setActivityTitle("");
+      setScanState("decoding");
+      setMessage(
+        "Đang đọc mã QR từ ảnh..."
+      );
+
+      const imageUrl =
+        URL.createObjectURL(file);
+
+      try {
+        const reader =
+          readerRef.current ||
+          new BrowserQRCodeReader();
+
+        readerRef.current = reader;
+
+        const result =
+          await reader.decodeFromImageUrl(
+            imageUrl
+          );
+
+        const token =
+          result.getText().trim();
+
+        if (!token) {
+          throw new Error(
+            "Không tìm thấy nội dung QR."
+          );
+        }
+
+        await handleCheckin(token);
+      } catch (error) {
+        console.error(
+          "[QR IMAGE DECODER]",
+          error
+        );
+
+        setScanState("error");
+        setMessage(
+          "Không đọc được mã QR từ ảnh. Hãy chọn ảnh rõ hơn, có đầy đủ mã QR."
+        );
+      } finally {
+        URL.revokeObjectURL(imageUrl);
+      }
+    },
+    [handleCheckin, stopScanner]
+  );
+
   const retry = () => {
     stopScanner();
     setActivityTitle("");
@@ -312,10 +396,11 @@ export default function ScanAttendancePage() {
           </h1>
 
           <p>
-            BCH sẽ hiển thị mã QR trên màn hình.
-            Bạn chỉ cần mở camera và đưa mã vào
-            chính giữa khung quét.
-          </p>
+  BCH sẽ hiển thị mã QR trên màn hình.
+  Bạn có thể mở camera để quét trực tiếp
+  hoặc tải ảnh QR đã chụp / chụp màn hình
+  từ thiết bị của mình.
+</p>
         </section>
 
         <section className="member-portal-scan-card">
@@ -342,21 +427,28 @@ export default function ScanAttendancePage() {
               <div className="member-portal-scan-camera-overlay">
                 <div className="member-portal-scan-camera-overlay-icon">
                   {scanState === "success" ? (
-                    <CheckCircle2 size={30} />
-                  ) : scanState === "error" ? (
-                    <XCircle size={30} />
-                  ) : (
-                    <Camera size={30} />
-                  )}
+  <CheckCircle2 size={30} />
+) : scanState === "error" ? (
+  <XCircle size={30} />
+) : scanState === "decoding" ? (
+  <Loader2
+    size={30}
+    className="member-portal-scan-spin"
+  />
+) : (
+  <Camera size={30} />
+)}
                 </div>
 
                 <strong>
-                  {scanState === "success"
-                    ? "Đã hoàn tất"
-                    : scanState === "error"
-                    ? "Không thể quét"
-                    : "Camera chưa hoạt động"}
-                </strong>
+  {scanState === "success"
+    ? "Đã hoàn tất"
+    : scanState === "error"
+    ? "Không thể quét"
+    : scanState === "decoding"
+    ? "ĐANG ĐỌC ẢNH QR"
+    : "Camera chưa hoạt động"}
+</strong>
               </div>
             )}
           </div>
@@ -402,30 +494,76 @@ export default function ScanAttendancePage() {
             </div>
           )}
 
-          <div className="member-portal-scan-actions">
+                    <div className="member-portal-scan-actions">
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) =>
+                void handleImageUpload(event)
+              }
+              className="member-portal-scan-image-input"
+            />
+
             {scanState === "ready" && (
-              <button
-                type="button"
-                onClick={() =>
-                  void startScanner()
-                }
-                disabled={starting}
-                className="member-portal-scan-primary"
-              >
-                <Camera size={18} />
-                MỞ CAMERA QUÉT QR
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void startScanner()
+                  }
+                  disabled={starting}
+                  className="member-portal-scan-primary"
+                >
+                  <Camera size={18} />
+                  MỞ CAMERA QUÉT QR
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    imageInputRef.current?.click()
+                  }
+                  className="member-portal-scan-upload"
+                >
+                  <ImageUp size={18} />
+                  TẢI ẢNH QR
+                </button>
+              </>
+            )}
+
+            {scanState === "decoding" && (
+              <div className="member-portal-scan-decoding">
+                <Loader2
+                  size={18}
+                  className="member-portal-scan-spin"
+                />
+                ĐANG ĐỌC ẢNH QR...
+              </div>
             )}
 
             {scanState === "error" && (
-              <button
-                type="button"
-                onClick={retry}
-                className="member-portal-scan-primary"
-              >
-                <RefreshCw size={18} />
-                THỬ LẠI
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="member-portal-scan-primary"
+                >
+                  <RefreshCw size={18} />
+                  THỬ LẠI
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    imageInputRef.current?.click()
+                  }
+                  className="member-portal-scan-upload"
+                >
+                  <ImageUp size={18} />
+                  CHỌN ẢNH QR KHÁC
+                </button>
+              </>
             )}
 
             {scanState === "success" && (
@@ -437,6 +575,17 @@ export default function ScanAttendancePage() {
                 >
                   <RefreshCw size={17} />
                   QUÉT MÃ KHÁC
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    imageInputRef.current?.click()
+                  }
+                  className="member-portal-scan-upload"
+                >
+                  <ImageUp size={17} />
+                  TẢI ẢNH QR KHÁC
                 </button>
 
                 <Link
@@ -467,33 +616,33 @@ export default function ScanAttendancePage() {
         </section>
 
         <section className="member-portal-scan-guide">
-          <div>
-            <span>01</span>
-            <strong>Mở camera</strong>
-            <p>
-              Cho phép trình duyệt sử dụng camera
-              khi được yêu cầu.
-            </p>
-          </div>
+  <div>
+    <span>01</span>
+    <strong>Mở camera hoặc tải ảnh</strong>
+    <p>
+      Quét QR trực tiếp hoặc chọn ảnh QR
+      từ thư viện trên điện thoại.
+    </p>
+  </div>
 
-          <div>
-            <span>02</span>
-            <strong>Đưa QR vào khung</strong>
-            <p>
-              Giữ điện thoại ổn định và để toàn bộ
-              mã QR nằm trong vùng quét.
-            </p>
-          </div>
+  <div>
+    <span>02</span>
+    <strong>Đưa QR vào hệ thống</strong>
+    <p>
+      Với ảnh, hãy chọn ảnh có toàn bộ mã
+      QR rõ nét và không bị che khuất.
+    </p>
+  </div>
 
-          <div>
-            <span>03</span>
-            <strong>Hoàn tất</strong>
-            <p>
-              Hệ thống sẽ tự xác thực và ghi nhận
-              có mặt cho tài khoản của bạn.
-            </p>
-          </div>
-        </section>
+  <div>
+    <span>03</span>
+    <strong>Hoàn tất</strong>
+    <p>
+      Hệ thống tự đọc mã, xác thực token
+      và ghi nhận điểm danh cho tài khoản.
+    </p>
+  </div>
+</section>
 
         <footer className="member-portal-scan-footer">
           <ShieldCheck size={15} />
