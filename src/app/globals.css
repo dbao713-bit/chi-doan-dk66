@@ -37807,3 +37807,29 @@ button.danger:hover {
     font-size: 12px;
   }
 }
+
+/* =========================================================
+   MOBILE - NHẤN MẠNH MỤC QUÉT QR
+   ========================================================= */
+
+.member-portal-mobile-drawer-card nav
+  a.member-portal-mobile-qr
+  strong {
+  font-weight: 800 !important;
+  color: #52657c;
+}
+
+/* Làm icon và chữ cùng cảm giác nổi bật */
+.member-portal-mobile-drawer-card nav
+  a.member-portal-mobile-qr
+  svg {
+  stroke-width: 2.3;
+}
+
+/* Badge MỚI */
+.member-portal-mobile-drawer-card nav
+  a.member-portal-mobile-qr
+  em {
+  font-style: normal;
+  font-weight: 800;
+}
