@@ -2008,6 +2008,24 @@ export default function PortalPage() {
                 </a>
 
                 <a
+  href="/portal/polls"
+  className="member-portal-mobile-nav-item"
+  onClick={() => setMobileMenuOpen(false)}
+>
+  <Vote size={18} />
+  Bình chọn
+</a>
+
+<a
+  href="/portal/study-hub"
+  className="member-portal-mobile-nav-item"
+  onClick={() => setMobileMenuOpen(false)}
+>
+  <BookOpen size={18} />
+  Study Hub
+</a>
+
+                <a
                   href="#score"
                   className={
                     activeSection === "score" ? "active" : ""
