@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import {
   Activity as ActivityIcon,
   Bell,
+  BookOpen,
   CalendarDays,
   QrCode,
   CheckCircle2,
@@ -783,6 +784,14 @@ export default function PortalPage() {
 >
   <Vote size={18} />
   <span>Bình chọn</span>
+</Link>
+
+<Link
+  href="/portal/study-hub"
+  className="member-portal-nav-item member-portal-nav-study"
+>
+  <BookOpen size={18} />
+  <span>Study Hub</span>
 </Link>
 
             <a

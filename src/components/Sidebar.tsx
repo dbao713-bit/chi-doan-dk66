@@ -17,6 +17,7 @@ import {
   MessageSquare,
   CircleDollarSign,
   Vote,
+  BookOpen,
 } from "lucide-react";
 
 import { useSidebar } from "@/context/SidebarContext";
@@ -48,22 +49,17 @@ const menuItems = [
     icon: CircleDollarSign,
   },
   {
-    href: "/dashboard/polls",
-    title: "Bình chọn",
-    icon: Vote,
-  },
-  {
-    href: "/dashboard/feedback",
-    title: "Phản ánh & góp ý",
-    icon: MessageSquare,
+    href: "/dashboard/activities",
+    title: "Sinh hoạt",
+    icon: CalendarDays,
   },
 ];
 
 const extensionItems = [
   {
-    href: "/dashboard/activities",
-    title: "Sinh hoạt",
-    icon: CalendarDays,
+    href: "/dashboard/polls",
+    title: "Bình chọn",
+    icon: Vote,
   },
   {
     href: "/dashboard/documents",
@@ -71,9 +67,19 @@ const extensionItems = [
     icon: FileText,
   },
   {
+    href: "/dashboard/study-hub",
+    title: "Study Hub",
+    icon: BookOpen,
+  },
+  {
     href: "/dashboard/library",
     title: "Thư viện",
     icon: Image,
+  },
+  {
+    href: "/dashboard/feedback",
+    title: "Phản ánh & góp ý",
+    icon: MessageSquare,
   },
   {
     href: "/dashboard/frog-race",
