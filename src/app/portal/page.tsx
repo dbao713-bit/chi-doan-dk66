@@ -22,6 +22,7 @@ import {
   Sparkles,
   Star,
   UserRound,
+  Vote,
   X,
   XCircle,
   Clock3,
@@ -775,6 +776,14 @@ export default function PortalPage() {
               <QrCode size={18} />
               <span>Quét QR điểm danh</span>
             </a>
+
+            <Link
+  href="/portal/polls"
+  className="member-portal-nav-item member-portal-nav-polls"
+>
+  <Vote size={18} />
+  <span>Bình chọn</span>
+</Link>
 
             <a
               href="#score"

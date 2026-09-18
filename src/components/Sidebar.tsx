@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   Users,
@@ -9,12 +10,13 @@ import {
   CalendarDays,
   FileText,
   Image,
-  Settings,
+  LogOut,
   GraduationCap,
   Trophy,
   KeyRound,
   MessageSquare,
   CircleDollarSign,
+  Vote,
 } from "lucide-react";
 
 import { useSidebar } from "@/context/SidebarContext";
@@ -41,14 +43,19 @@ const menuItems = [
     icon: KeyRound,
   },
   {
-    href: "/dashboard/feedback",
-    title: "Phản ánh & góp ý",
-    icon: MessageSquare,
-  },
-  {
     href: "/dashboard/finance",
     title: "Quỹ & đoàn phí",
     icon: CircleDollarSign,
+  },
+  {
+    href: "/dashboard/polls",
+    title: "Bình chọn",
+    icon: Vote,
+  },
+  {
+    href: "/dashboard/feedback",
+    title: "Phản ánh & góp ý",
+    icon: MessageSquare,
   },
 ];
 
@@ -78,6 +85,16 @@ const extensionItems = [
 export default function Sidebar() {
   const { collapsed } = useSidebar();
   const pathname = usePathname();
+
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("[SIDEBAR LOGOUT]", error);
+    } finally {
+      window.location.href = "/admin";
+    }
+  }
 
   return (
     <aside
@@ -119,9 +136,7 @@ export default function Sidebar() {
               pathname === item.href ||
               (
                 item.href !== "/dashboard" &&
-                pathname.startsWith(
-                  item.href
-                )
+                pathname.startsWith(item.href)
               );
 
             return (
@@ -153,9 +168,7 @@ export default function Sidebar() {
 
             const active =
               pathname === item.href ||
-              pathname.startsWith(
-                `${item.href}/`
-              );
+              pathname.startsWith(`${item.href}/`);
 
             return (
               <SidebarItem
@@ -171,19 +184,33 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* QUẢN TRỊ */}
+      {/* ĐĂNG XUẤT */}
 
       <div className="dashboard-sidebar-bottom">
-        <SidebarItem
-          href="/admin"
-          title="Quản trị"
-          icon={<Settings size={20} />}
-          collapsed={collapsed}
-          active={
-            pathname === "/admin" ||
-            pathname.startsWith("/admin/")
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`dashboard-sidebar-item ${
+            collapsed
+              ? "dashboard-sidebar-item-collapsed"
+              : ""
+          }`}
+          title={
+            collapsed
+              ? "Đăng xuất"
+              : undefined
           }
-        />
+        >
+          <span className="dashboard-sidebar-item-icon">
+            <LogOut size={20} />
+          </span>
+
+          {!collapsed && (
+            <span className="dashboard-sidebar-item-title">
+              Đăng xuất
+            </span>
+          )}
+        </button>
       </div>
     </aside>
   );
