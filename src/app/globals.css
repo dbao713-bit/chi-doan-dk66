@@ -41073,3 +41073,129 @@ button.danger:hover {
     max-height: 100dvh;
   }
 }
+
+/* =========================================================
+   PORTAL MOBILE — FINAL FIX
+   Desktop sidebar không được xuất hiện trên điện thoại
+   Mobile chỉ dùng header + drawer bên phải
+   ========================================================= */
+
+@media (max-width: 900px) {
+  /* =========================================
+     1. ẨN SIDEBAR DESKTOP HOÀN TOÀN
+     ========================================= */
+
+  .member-portal-sidebar {
+    display: none !important;
+
+    position: fixed !important;
+
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+
+    width: 0 !important;
+    min-width: 0 !important;
+
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    overflow: hidden !important;
+
+    visibility: hidden !important;
+    pointer-events: none !important;
+
+    transform: none !important;
+  }
+
+  /* Nút < > của desktop cũng không được xuất hiện */
+
+  .member-portal-sidebar-collapse {
+    display: none !important;
+  }
+
+  /* =========================================
+     2. MAIN MOBILE FULL WIDTH
+     ========================================= */
+
+  .member-portal-main {
+    width: 100% !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow-x: hidden !important;
+  }
+
+  /* =========================================
+     3. HEADER MOBILE LUÔN HIỆN
+     ========================================= */
+
+  .member-portal-mobile-header {
+    display: flex !important;
+
+    position: sticky !important;
+    top: 0 !important;
+
+    z-index: 500 !important;
+
+    width: 100% !important;
+  }
+
+  .member-portal-mobile-actions {
+    display: flex !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* =========================================
+     4. MOBILE DRAWER
+     mở từ BÊN PHẢI
+     ========================================= */
+
+  .member-portal-mobile-drawer {
+    position: fixed !important;
+
+    inset: 0 !important;
+
+    z-index: 9999 !important;
+
+    display: flex !important;
+
+    align-items: stretch !important;
+    justify-content: flex-end !important;
+
+    width: 100vw !important;
+    height: 100dvh !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: rgba(15, 23, 42, 0.42) !important;
+
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+  }
+
+  .member-portal-mobile-drawer-card {
+    width: min(86vw, 360px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+
+    margin: 0 0 0 auto !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    border-radius: 22px 0 0 22px !important;
+
+    background: #ffffff !important;
+
+    box-shadow:
+      -18px 0 55px rgba(15, 23, 42, 0.18) !important;
+  }
+}
