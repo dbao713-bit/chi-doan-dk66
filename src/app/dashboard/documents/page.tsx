@@ -1206,9 +1206,10 @@ function getFileUrl(path: string) {
 
 
             <form
-              onSubmit={handleSubmit}
-              className="documents-modal-form"
-            >
+  id="document-modal-form"
+  onSubmit={handleSubmit}
+  className="documents-modal-form"
+>
 
               <div className="documents-modal-field">
 
@@ -1358,40 +1359,41 @@ function getFileUrl(path: string) {
               </div>
 
 
-              <div className="documents-modal-actions">
+              </form>
 
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={saving}
-                  className="documents-dashboard-secondary"
-                >
-                  Hủy
-                </button>
+<div className="documents-modal-actions">
 
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="documents-dashboard-primary"
-                >
-                  {saving ? (
-                    <>
-                      <span className="documents-spinner" />
-                      Đang lưu...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={17} />
-                      {editingId
-                        ? "Lưu thay đổi"
-                        : "Thêm tài liệu"}
-                    </>
-                  )}
-                </button>
+  <button
+    type="button"
+    onClick={closeModal}
+    disabled={saving}
+    className="documents-dashboard-secondary"
+  >
+    Hủy
+  </button>
 
-              </div>
+  <button
+    type="submit"
+    form="document-modal-form"
+    disabled={saving}
+    className="documents-dashboard-primary"
+  >
+    {saving ? (
+      <>
+        <span className="documents-spinner" />
+        Đang lưu...
+      </>
+    ) : (
+      <>
+        <CheckCircle2 size={17} />
+        {editingId
+          ? "Lưu thay đổi"
+          : "Thêm tài liệu"}
+      </>
+    )}
+  </button>
 
-            </form>
+</div>
 
           </div>
 

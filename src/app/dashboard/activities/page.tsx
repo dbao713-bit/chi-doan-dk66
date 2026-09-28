@@ -294,10 +294,18 @@ export default function ActivitiesPage() {
   }
 
   useEffect(() => {
-    void loadActivities();
-    void loadRegistrations();
-    void loadAttendance();
-  }, []);
+  void loadActivities();
+  void loadRegistrations();
+  void loadAttendance();
+
+  const timer = window.setInterval(() => {
+    void loadActivities(true);
+  }, 30000);
+
+  return () => {
+    window.clearInterval(timer);
+  };
+}, []);
 
   const filteredActivities = useMemo(() => {
     const keyword =
